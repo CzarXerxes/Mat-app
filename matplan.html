@@ -169,6 +169,19 @@ input[type=range]{width:100%;accent-color:var(--herb)}
 .steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
 .steps li::marker{font-family:var(--f-mono);color:var(--herb)}
 
+.rest{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--herb);margin-top:2px}
+.rest svg{width:13px;height:13px;flex:none}
+.from{font-size:10.5px;font-weight:600;color:var(--herb);margin-left:8px;text-transform:uppercase;letter-spacing:.06em}
+.iname small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.iname small.fresh{color:var(--warn)}
+.fill.warnfill{background:var(--warn)}
+.after{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:4px 16px 14px;display:flex;flex-direction:column;gap:6px}
+.after h4{margin:12px 0 2px;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.after-head{display:flex;justify-content:space-between;gap:10px;font-weight:600;font-size:14px;padding-top:6px}
+.wrow{display:grid;grid-template-columns:1fr auto auto;gap:12px;font-size:14px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.wrow span:nth-child(2){color:var(--muted);font-size:13px}
+.wrow span:nth-child(3){min-width:48px;text-align:right;font-size:13px}
+.keep{margin:0;font-size:14px;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -206,70 +219,71 @@ input[type=range]{width:100%;accent-color:var(--herb)}
 /* ---------- Data: ingredients (pris i kr per kg / liter / stk, omtrentlige norske dagligvarepriser) ---------- */
 const CATS = {frukt:"Frukt og grønt", kjott:"Kjøtt og fisk", kjol:"Meieri, egg og kjøl", brod:"Brød og bakst", torr:"Tørrvarer og hermetikk", frys:"Frysevarer", basis:"Basisvarer"};
 const CAT_ORDER = ["frukt","brod","kjott","kjol","torr","frys"];
-// u: g | ml | stk ; p: kr per 1000 g/ml eller per stk ; f: m=kjøtt f=fisk d=melk e=egg g=gluten ; s: enhetsnavn for stk
+// u: g | ml | stk ; pk: pakningsstørrelse ; pp: pris per pakning (kr) ; h: dager holdbar etter åpning (mangler = holdbart)
+// pn: navn på pakningen ; s: enhetsnavn for stk ; sn: kort navn ; f: m=kjøtt f=fisk d=melk e=egg g=gluten
 const ING = {
-  kylling:{n:"Kyllingfilet",u:"g",p:149,c:"kjott",f:"m"},
-  kyllinglar:{n:"Kyllinglår",u:"g",p:85,c:"kjott",f:"m"},
-  kjottdeig:{n:"Kjøttdeig av storfe",u:"g",p:125,c:"kjott",f:"m"},
-  polser:{n:"Wienerpølser",u:"g",p:95,c:"kjott",f:"m"},
-  skinke:{n:"Kokt skinke, pålegg",u:"g",p:210,c:"kjott",f:"m"},
-  laks:{n:"Laksefilet",u:"g",p:229,c:"kjott",f:"f"},
-  torsk:{n:"Torskefilet, fryst",u:"g",p:159,c:"frys",f:"f"},
-  makrell:{n:"Makrell i tomat, boks",u:"stk",p:24,c:"torr",f:"f",s:"boks"},
-  egg:{n:"Egg",u:"stk",p:4,c:"kjol",f:"e"},
-  melk:{n:"Lettmelk",u:"ml",p:23,c:"kjol",f:"d"},
-  havredrikk:{n:"Havredrikk",u:"ml",p:30,c:"kjol",f:"g"},
-  yoghurt:{n:"Gresk yoghurt",u:"g",p:55,c:"kjol",f:"d"},
-  ost:{n:"Hvitost",u:"g",p:125,c:"kjol",f:"d"},
-  feta:{n:"Fetaost",u:"g",p:175,c:"kjol",f:"d"},
-  romme:{n:"Lettrømme",u:"g",p:55,c:"kjol",f:"d"},
-  smor:{n:"Smør",u:"g",p:110,c:"kjol",f:"d"},
-  tofu:{n:"Tofu",u:"g",p:95,c:"kjol",f:""},
-  hummus:{n:"Hummus",u:"g",p:115,c:"kjol",f:""},
-  pesto:{n:"Grønn pesto",u:"g",p:230,c:"torr",f:"d"},
-  brod:{n:"Grovbrød",u:"g",p:52,c:"brod",f:"g"},
-  knekkebrod:{n:"Knekkebrød",u:"g",p:70,c:"brod",f:"g"},
-  tortilla:{n:"Tortillalefser",u:"stk",p:5,c:"brod",f:"g"},
-  havregryn:{n:"Havregryn",u:"g",p:26,c:"torr",f:"g"},
-  pasta:{n:"Pasta",u:"g",p:26,c:"torr",f:"g"},
-  couscous:{n:"Couscous",u:"g",p:48,c:"torr",f:"g"},
-  nudler:{n:"Eggnudler",u:"g",p:58,c:"torr",f:"ge"},
-  ris:{n:"Ris",u:"g",p:32,c:"torr",f:""},
-  hvetemel:{n:"Hvetemel",u:"g",p:19,c:"torr",f:"g"},
-  gjaer:{n:"Tørrgjær",u:"stk",p:5,c:"torr",f:"",s:"pose"},
-  linser:{n:"Røde linser",u:"g",p:46,c:"torr",f:""},
-  kikerter:{n:"Kikerter, boks",u:"g",p:42,c:"torr",f:""},
-  bonner:{n:"Kidneybønner, boks",u:"g",p:42,c:"torr",f:""},
-  tomatboks:{n:"Hakkede tomater, boks",u:"g",p:27,c:"torr",f:""},
-  kokosmelk:{n:"Kokosmelk",u:"ml",p:62,c:"torr",f:""},
-  mais:{n:"Mais, boks",u:"g",p:48,c:"torr",f:""},
-  tacokrydder:{n:"Tacokrydder",u:"g",p:340,c:"torr",f:""},
-  notter:{n:"Nøtteblanding",u:"g",p:210,c:"torr",f:""},
-  peanottsmor:{n:"Peanøttsmør",u:"g",p:95,c:"torr",f:""},
-  lok:{n:"Løk",u:"stk",p:3,c:"frukt",f:""},
-  hvitlok:{n:"Hvitløk",u:"stk",p:1.5,c:"frukt",f:"",s:"fedd"},
-  gulrot:{n:"Gulrøtter",u:"g",p:26,c:"frukt",f:""},
-  brokkoli:{n:"Brokkoli",u:"g",p:52,c:"frukt",f:""},
-  blomkal:{n:"Blomkål",u:"g",p:46,c:"frukt",f:""},
-  paprika:{n:"Paprika",u:"stk",p:12,c:"frukt",f:""},
-  tomat:{n:"Tomat",u:"stk",p:6,c:"frukt",f:""},
-  agurk:{n:"Agurk",u:"stk",p:16,c:"frukt",f:""},
-  salat:{n:"Hjertesalat",u:"stk",p:22,c:"frukt",f:""},
-  spinat:{n:"Babyspinat",u:"g",p:135,c:"frukt",f:""},
-  sopp:{n:"Sjampinjong",u:"g",p:92,c:"frukt",f:""},
-  purre:{n:"Purre",u:"stk",p:15,c:"frukt",f:""},
-  poteter:{n:"Poteter",u:"g",p:22,c:"frukt",f:""},
-  avokado:{n:"Avokado",u:"stk",p:15,c:"frukt",f:""},
-  banan:{n:"Banan",u:"stk",p:4,c:"frukt",f:""},
-  sitron:{n:"Sitron",u:"stk",p:7,c:"frukt",f:""},
-  ingefaer:{n:"Ingefær",u:"g",p:100,c:"frukt",f:""},
-  baer:{n:"Frosne bær",u:"g",p:62,c:"frys",f:""},
-  erter:{n:"Frosne erter",u:"g",p:40,c:"frys",f:""},
-  soyasaus:{n:"Soyasaus",u:"ml",p:0,c:"basis",f:"g"},
-  olje:{n:"Olje",u:"ml",p:0,c:"basis",f:""},
-  buljong:{n:"Buljong",u:"stk",p:0,c:"basis",f:""},
-  karri:{n:"Karri",u:"g",p:0,c:"basis",f:""},
-  honning:{n:"Honning",u:"g",p:0,c:"basis",f:""},
+  kylling:{n:"Kyllingfilet",u:"g",pk:400,pp:59,h:3,c:"kjott",f:"m"},
+  kyllinglar:{n:"Kyllinglår",u:"g",pk:1000,pp:85,h:3,c:"kjott",f:"m"},
+  kjottdeig:{n:"Kjøttdeig av storfe",u:"g",pk:400,pp:50,h:2,c:"kjott",f:"m"},
+  polser:{n:"Wienerpølser",u:"g",pk:600,pp:55,h:7,c:"kjott",f:"m"},
+  skinke:{n:"Kokt skinke, pålegg",sn:"skinke",u:"g",pk:120,pp:25,h:5,c:"kjott",f:"m"},
+  laks:{n:"Laksefilet",u:"g",pk:250,pp:59,h:2,c:"kjott",f:"f"},
+  torsk:{n:"Torskefilet, fryst",u:"g",pk:400,pp:65,c:"frys",f:"f"},
+  makrell:{n:"Makrell i tomat",sn:"makrell",u:"stk",pk:1,pp:24,h:3,pn:"boks",s:"boks",c:"torr",f:"f"},
+  egg:{n:"Egg",u:"stk",pk:12,pp:48,h:28,pn:"pk",c:"kjol",f:"e"},
+  melk:{n:"Lettmelk",u:"ml",pk:1000,pp:23,h:6,c:"kjol",f:"d"},
+  havredrikk:{n:"Havredrikk",u:"ml",pk:1000,pp:30,h:7,c:"kjol",f:"g"},
+  yoghurt:{n:"Gresk yoghurt",sn:"yoghurt",u:"g",pk:500,pp:32,h:6,c:"kjol",f:"d"},
+  ost:{n:"Hvitost",u:"g",pk:500,pp:62,h:21,c:"kjol",f:"d"},
+  feta:{n:"Fetaost",u:"g",pk:200,pp:35,h:6,c:"kjol",f:"d"},
+  romme:{n:"Lettrømme",sn:"rømme",u:"g",pk:300,pp:18,h:6,c:"kjol",f:"d"},
+  smor:{n:"Smør",u:"g",pk:250,pp:30,h:30,c:"kjol",f:"d"},
+  tofu:{n:"Tofu",u:"g",pk:270,pp:29,h:3,c:"kjol",f:""},
+  hummus:{n:"Hummus",u:"g",pk:200,pp:25,h:5,c:"kjol",f:""},
+  pesto:{n:"Grønn pesto",sn:"pesto",u:"g",pk:190,pp:42,h:7,c:"torr",f:"d"},
+  brod:{n:"Grovbrød",sn:"brød",u:"g",pk:750,pp:40,h:4,c:"brod",f:"g"},
+  knekkebrod:{n:"Knekkebrød",u:"g",pk:520,pp:35,c:"brod",f:"g"},
+  tortilla:{n:"Tortillalefser",sn:"tortilla",u:"stk",pk:8,pp:30,h:7,pn:"pk",c:"brod",f:"g"},
+  havregryn:{n:"Havregryn",u:"g",pk:1000,pp:26,c:"torr",f:"g"},
+  pasta:{n:"Pasta",u:"g",pk:500,pp:14,c:"torr",f:"g"},
+  couscous:{n:"Couscous",u:"g",pk:500,pp:24,c:"torr",f:"g"},
+  nudler:{n:"Eggnudler",u:"g",pk:250,pp:15,c:"torr",f:"ge"},
+  ris:{n:"Ris",u:"g",pk:1000,pp:32,c:"torr",f:""},
+  hvetemel:{n:"Hvetemel",u:"g",pk:1000,pp:19,c:"torr",f:"g"},
+  gjaer:{n:"Tørrgjær",u:"stk",pk:1,pp:5,pn:"pose",s:"pose",c:"torr",f:""},
+  linser:{n:"Røde linser",u:"g",pk:400,pp:19,c:"torr",f:""},
+  kikerter:{n:"Kikerter, boks",sn:"kikerter",u:"g",pk:230,pp:11,h:3,c:"torr",f:""},
+  bonner:{n:"Kidneybønner, boks",sn:"kidneybønner",u:"g",pk:230,pp:11,h:3,c:"torr",f:""},
+  tomatboks:{n:"Hakkede tomater, boks",sn:"hakkede tomater",u:"g",pk:400,pp:11,h:3,c:"torr",f:""},
+  kokosmelk:{n:"Kokosmelk",u:"ml",pk:400,pp:25,h:3,c:"torr",f:""},
+  mais:{n:"Mais, boks",sn:"mais",u:"g",pk:285,pp:14,h:3,c:"torr",f:""},
+  tacokrydder:{n:"Tacokrydder",u:"g",pk:28,pp:10,c:"torr",f:""},
+  notter:{n:"Nøtteblanding",u:"g",pk:200,pp:42,c:"torr",f:""},
+  peanottsmor:{n:"Peanøttsmør",u:"g",pk:350,pp:35,c:"torr",f:""},
+  lok:{n:"Løk",u:"stk",pk:1,pp:3,h:5,c:"frukt",f:""},
+  hvitlok:{n:"Hvitløk",u:"stk",pk:10,pp:8,h:30,pn:"hode",s:"fedd",c:"frukt",f:""},
+  gulrot:{n:"Gulrøtter",u:"g",pk:1000,pp:26,h:21,c:"frukt",f:""},
+  brokkoli:{n:"Brokkoli",u:"g",pk:400,pp:25,h:5,c:"frukt",f:""},
+  blomkal:{n:"Blomkål",u:"g",pk:800,pp:35,h:5,c:"frukt",f:""},
+  paprika:{n:"Paprika",u:"stk",pk:1,pp:12,h:5,c:"frukt",f:""},
+  tomat:{n:"Tomat",u:"stk",pk:1,pp:6,h:7,c:"frukt",f:""},
+  agurk:{n:"Agurk",u:"stk",pk:1,pp:16,h:5,c:"frukt",f:""},
+  salat:{n:"Hjertesalat",sn:"salat",u:"stk",pk:1,pp:22,h:4,c:"frukt",f:""},
+  spinat:{n:"Babyspinat",sn:"spinat",u:"g",pk:130,pp:35,h:3,c:"frukt",f:""},
+  sopp:{n:"Sjampinjong",sn:"sopp",u:"g",pk:250,pp:25,h:4,c:"frukt",f:""},
+  purre:{n:"Purre",u:"stk",pk:1,pp:15,h:10,c:"frukt",f:""},
+  poteter:{n:"Poteter",u:"g",pk:1500,pp:35,h:30,c:"frukt",f:""},
+  avokado:{n:"Avokado",u:"stk",pk:1,pp:15,h:2,c:"frukt",f:""},
+  banan:{n:"Banan",u:"stk",pk:1,pp:4,h:5,c:"frukt",f:""},
+  sitron:{n:"Sitron",u:"stk",pk:1,pp:7,h:14,c:"frukt",f:""},
+  ingefaer:{n:"Ingefær",u:"g",pk:50,pp:5,h:21,c:"frukt",f:""},
+  baer:{n:"Frosne bær",u:"g",pk:500,pp:32,c:"frys",f:""},
+  erter:{n:"Frosne erter",u:"g",pk:500,pp:22,c:"frys",f:""},
+  soyasaus:{n:"Soyasaus",u:"ml",pk:1,pp:0,c:"basis",f:"g"},
+  olje:{n:"Olje",u:"ml",pk:1,pp:0,c:"basis",f:""},
+  buljong:{n:"Buljong",u:"stk",pk:1,pp:0,c:"basis",f:""},
+  karri:{n:"Karri",u:"g",pk:1,pp:0,c:"basis",f:""},
+  honning:{n:"Honning",u:"g",pk:1,pp:0,c:"basis",f:""},
 };
 
 /* ---------- Data: oppskrifter (mengder per porsjon, makro i gram per porsjon [protein, fett, karbo]) ---------- */
@@ -378,6 +392,7 @@ const ICON = {
   swap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg>',
   dice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14z"/><path d="M5 19l7-7"/></svg>',
   copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></svg>',
 };
 
@@ -393,18 +408,22 @@ function allowed(r,s){
   if(s.allergies.egg&&f.includes("e"))return false;
   return true;
 }
-function costPer(r){return r.i.reduce((sum,[id,a])=>{const g=ING[id];return sum+(g.u==="stk"?a*g.p:a*g.p/1000)},0)}
+function costPer(r){return r.i.reduce((sum,[id,a])=>sum+a*unit(ING[id]),0)}
+const unit = g => g.pp/g.pk;
+const fresh = g => g.h!==undefined && g.h<=10;
+const short = g => g.sn || g.n.split(/[ ,]/)[0].toLowerCase();
 function kcal(r){const[p,f,k]=r.mac;return p*4+f*9+k*4}
 function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*100,k:k*4/e*100}}
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 S.meals=Object.assign({},DEFAULTS.meals,S.meals); S.allergies=Object.assign({},DEFAULTS.allergies,S.allergies);
 let P = store.get("plan",null);
 let checked = store.get("checked",{});
 let tab = "meny";
+let SIM = null;
 
 /* ---------- Planner ---------- */
 function slotMaxTime(dateObj){const wd=dateObj.getDay();return(wd===0||wd===6)?S.tWeekend:S.tWeek}
@@ -415,69 +434,135 @@ function candidates(meal,maxT){
   if(ok.length)return{list:ok,relaxed:false};
   return{list:all.sort((a,b)=>a.t-b.t).slice(0,3),relaxed:all.length>0};
 }
-function score(r,meal,used,prevPr){
-  const prof=PROFILES[S.profile];
-  const cost=costPer(r)*S.persons, sb=slotBudget(meal);
-  const costPen=Math.max(0,cost-sb)/sb;
+
+/* Kjøleskapet: partier (lots) av hver vare med mengde og siste brukedag */
+function newInv(){return{lots:[],buy:{},used:{},waste:{}}}
+function lotsOf(inv,id,day){return inv.lots.filter(l=>l.id===id&&l.amt>1e-6&&l.exp>=day).sort((a,b)=>a.exp-b.exp)}
+function expire(inv,day){inv.lots=inv.lots.filter(l=>{if(l.amt<=1e-6)return false;if(l.exp<day){inv.waste[l.id]=(inv.waste[l.id]||0)+l.amt;return false}return true})}
+function quote(inv,r,day){
+  let marg=0,restVal=0,newLeft=0;const rest=[];
+  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;const a=a0*S.persons;
+    const av=lotsOf(inv,id,day).reduce((x,l)=>x+l.amt,0);const from=Math.min(av,a);
+    if(from>1e-6&&fresh(g)){restVal+=from*unit(g);rest.push(id)}
+    const need=a-from;if(need>1e-6){const packs=Math.ceil(need/g.pk-1e-9);marg+=packs*g.pp;if(fresh(g))newLeft+=(packs*g.pk-need)*unit(g)}}
+  return{marg,restVal,rest,newLeft};
+}
+function apply(inv,r,day){
+  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;let need=a0*S.persons;
+    inv.used[id]=(inv.used[id]||0)+need;
+    for(const l of lotsOf(inv,id,day)){const take=Math.min(l.amt,need);l.amt-=take;need-=take;if(need<=1e-6)break}
+    if(need>1e-6){const packs=Math.ceil(need/g.pk-1e-9);inv.buy[id]=(inv.buy[id]||0)+packs;inv.lots.push({id,amt:packs*g.pk-need,exp:day+(g.h??9999)})}}
+}
+function walk(slots,upto,inv,onSlot){
+  let day=-1;
+  for(let j=0;j<upto;j++){const s=slots[j];
+    if(s.d!==day){for(let d=day+1;d<=s.d;d++)expire(inv,d);day=s.d}
+    if(s.id){const r=RBY[s.id];onSlot&&onSlot(j,quote(inv,r,s.d));apply(inv,r,s.d)}}
+  return day;
+}
+function invBefore(slots,idx){const inv=newInv();const day=walk(slots,idx,inv);for(let d=day+1;d<=slots[idx].d;d++)expire(inv,d);return inv}
+function simulate(slots){
+  const inv=newInv();const info=[];
+  walk(slots,slots.length,inv,(j,q)=>info[j]=q);
+  expire(inv,S.days);
+  const cost=Object.entries(inv.buy).reduce((a,[id,n])=>a+n*ING[id].pp,0);
+  const left={};inv.lots.forEach(l=>{if(l.amt>1e-6)left[l.id]=(left[l.id]||0)+l.amt});
+  const wasteItems={...inv.waste};
+  Object.entries(left).forEach(([id,a])=>{if(fresh(ING[id]))wasteItems[id]=(wasteItems[id]||0)+a});
+  const wasteVal=Object.entries(wasteItems).reduce((a,[id,x])=>a+x*unit(ING[id]),0);
+  return{cost,buy:inv.buy,used:inv.used,info,left,wasteItems,wasteVal};
+}
+
+function score(r,meal,used,prevPr,inv,day){
+  const prof=PROFILES[S.profile],sb=slotBudget(meal),full=costPer(r)*S.persons;
+  let c=full,bonus=0;
+  if(S.smartRest&&inv){const q=quote(inv,r,day);c=q.marg*.6+full*.4;bonus=q.restVal/sb*1.5-q.newLeft/sb*2}
+  const costPen=Math.max(0,c-sb)/sb*2+c/sb*.3;
   const rep=(used[r.id]||0)*(meal==="middag"?1.6:.5);
-  const same=(meal==="middag"&&prevPr&&prevPr===r.pr)?.7:0;
-  return macroDist(r,prof)*3+costPen*2+rep+same;
+  const same=(meal==="middag"&&prevPr&&prevPr===r.pr)?(bonus>0?.3:.7):0;
+  return macroDist(r,prof)*3+costPen+rep+same-bonus;
 }
 function generate(seed){
-  const rand=rng(seed); const used={}; const slots=[]; let prevPr=null;
+  const rand=rng(seed);const used={};const slots=[];let prevPr=null;const inv=newInv();
   for(let d=0;d<S.days;d++){
-    const date=addDays(S.start,d); const maxT=slotMaxTime(date);
-    for(const meal of MEALS){ if(!S.meals[meal])continue;
-      const {list,relaxed}=candidates(meal,maxT);
+    expire(inv,d);
+    const date=addDays(S.start,d);const maxT=slotMaxTime(date);
+    for(const meal of MEALS){if(!S.meals[meal])continue;
+      const{list,relaxed}=candidates(meal,maxT);
       if(!list.length){slots.push({d,meal,id:null});continue}
-      const ranked=list.map(r=>({r,s:score(r,meal,used,prevPr)})).sort((a,b)=>a.s-b.s);
-      const top=ranked.slice(0,3); const w=[.55,.3,.15].slice(0,top.length); const sum=w.reduce((a,b)=>a+b,0);
-      let x=rand()*sum, pick=top[0].r; for(let i=0;i<top.length;i++){x-=w[i];if(x<=0){pick=top[i].r;break}}
-      used[pick.id]=(used[pick.id]||0)+1; if(meal==="middag")prevPr=pick.pr;
+      const ranked=list.map(r=>({r,s:score(r,meal,used,prevPr,inv,d)})).sort((a,b)=>a.s-b.s);
+      const top=ranked.slice(0,3);const w=[.55,.3,.15].slice(0,top.length);const sum=w.reduce((a,b)=>a+b,0);
+      let x=rand()*sum,pick=top[0].r;for(let i=0;i<top.length;i++){x-=w[i];if(x<=0){pick=top[i].r;break}}
+      used[pick.id]=(used[pick.id]||0)+1;if(meal==="middag")prevPr=pick.pr;
+      apply(inv,pick,d);
       slots.push({d,meal,id:pick.id,relaxed});
     }
   }
+  if(S.smartRest)improve(slots);
   repairBudget(slots);
   return{seed,slots,sig:sig()};
 }
-function planCost(slots){return slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*S.persons:0),0)}
+/* Lokal forbedring: bytt enkeltretter når det gir lavere sum av handlekurv, svinn og avvik fra profil/variasjon (alt i kroner) */
+function objective(slots){
+  const sim=simulate(slots),prof=PROFILES[S.profile];let pen=0;const seen={};let prev=null;
+  slots.forEach(s=>{if(!s.id)return;const r=RBY[s.id],sb=slotBudget(s.meal);
+    pen+=macroDist(r,prof)*1.5*sb;
+    if(seen[s.id])pen+=sb*(s.meal==="middag"?1.3:.25);seen[s.id]=1;
+    if(s.meal==="middag"){if(prev===r.pr)pen+=sb*.15;prev=r.pr}});
+  return sim.cost+sim.wasteVal*1.2+pen;
+}
+function improve(slots){
+  let base=objective(slots);
+  for(let pass=0;pass<2;pass++){let changed=false;
+    slots.forEach(s=>{if(!s.id)return;const cur=s.id;
+      const{list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
+      let best=cur,bestV=base;
+      for(const c of list){if(c.id===cur)continue;s.id=c.id;const v=objective(slots);if(v<bestV-4){bestV=v;best=c.id}}
+      s.id=best;if(best!==cur){base=bestV;changed=true}});
+    if(!changed)break}
+}
 function repairBudget(slots){
   const prof=PROFILES[S.profile];
-  for(let it=0;it<60&&planCost(slots)>S.budget;it++){
+  for(let it=0;it<40;it++){
+    const base=simulate(slots).cost;if(base<=S.budget)break;
     const used={};slots.forEach(s=>{if(s.id)used[s.id]=(used[s.id]||0)+1});
     let best=null;
-    slots.forEach((s,idx)=>{ if(!s.id)return;
-      const cur=RBY[s.id]; const {list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
-      for(const c of list){ if(c.id===cur.id)continue;
-        const save=(costPer(cur)-costPer(c))*S.persons; if(save<=0)continue;
+    slots.forEach((s,idx)=>{if(!s.id)return;const cur=s.id;
+      const{list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
+      for(const c of list){if(c.id===cur||costPer(c)>=costPer(RBY[cur]))continue;
+        s.id=c.id;const save=base-simulate(slots).cost;s.id=cur;if(save<=.5)continue;
         const pen=macroDist(c,prof)*3+(used[c.id]||0)*(s.meal==="middag"?1.6:.5)+.01;
-        const ratio=pen/save; if(!best||ratio<best.ratio)best={idx,id:c.id,ratio};
-      }
+        const ratio=pen/save;if(!best||ratio<best.ratio)best={idx,id:c.id,ratio}}
     });
-    if(!best)break; slots[best.idx].id=best.id;
+    if(!best)break;slots[best.idx].id=best.id;
   }
 }
-function sig(){return JSON.stringify([S.start,S.days,S.persons,S.meals,S.diet,S.allergies,S.profile])}
+function sig(){return JSON.stringify([S.start,S.days,S.persons,S.meals,S.diet,S.allergies,S.profile,S.smartRest,2])}
 
 /* ---------- Shopping list ---------- */
 function shoppingList(){
-  const tot={};
-  P.slots.forEach(s=>{if(!s.id)return;RBY[s.id].i.forEach(([id,a])=>{tot[id]=(tot[id]||0)+a*S.persons})});
-  const groups={}; const pantry=[];
-  Object.entries(tot).forEach(([id,a])=>{const g=ING[id];
-    if(g.c==="basis"){pantry.push(g.n);return}
-    const cost=g.u==="stk"?Math.ceil(a-1e-9)*g.p:a*g.p/1000;
-    (groups[g.c]=groups[g.c]||[]).push({id,name:g.n,amt:fmtAmt(g,a),cost});
-  });
+  const groups={};const pantry=new Set();
+  P.slots.forEach(s=>{if(s.id)RBY[s.id].i.forEach(([id])=>{if(ING[id].c==="basis")pantry.add(ING[id].n)})});
+  Object.entries(SIM.buy).forEach(([id,n])=>{const g=ING[id];const left=n*g.pk-(SIM.used[id]||0);
+    (groups[g.c]=groups[g.c]||[]).push({id,name:g.n,amt:fmtPack(g,n),cost:n*g.pp,leftStr:left>1e-6?fmtQty(g,left):"",fresh:fresh(g)})});
   Object.values(groups).forEach(l=>l.sort((a,b)=>a.name.localeCompare(b.name,"nb")));
-  return{groups,pantry:pantry.sort((a,b)=>a.localeCompare(b,"nb"))};
+  return{groups,pantry:[...pantry].sort((a,b)=>a.localeCompare(b,"nb"))};
 }
-function fmtAmt(g,a){
-  if(g.u==="stk"){const n=Math.ceil(a-1e-9);return n+" "+(g.s||"stk")}
-  const big=g.u==="g"?"kg":"l", small=g.u;
-  if(a>=1000)return(a/1000).toLocaleString("nb-NO",{maximumFractionDigits:1})+" "+big;
-  const r=a>=100?Math.round(a/10)*10:Math.round(a/5)*5||Math.ceil(a);
-  return r+" "+small;
+function sizeStr(u,a){
+  if(u==="g")return a>=1000?(a/1000).toLocaleString("nb-NO")+" kg":a+" g";
+  if(u==="ml")return a>=1000?(a/1000).toLocaleString("nb-NO")+" l":a>=100?(a/100).toLocaleString("nb-NO")+" dl":a+" ml";
+  return a+" stk";
+}
+function fmtPack(g,n){
+  if(g.u==="stk"&&g.pk===1)return n+" "+(g.pn||g.s||"stk");
+  if(g.u==="stk")return n+" "+(g.pn||"pk")+" à "+g.pk+" "+(g.s||"stk");
+  return n+" × "+sizeStr(g.u,g.pk);
+}
+function fmtQty(g,a){
+  if(g.u==="stk"){const n=Math.round(a*2)/2;return(n||.5).toLocaleString("nb-NO")+" "+(g.s||"stk")}
+  if(a>=1000)return(a/1000).toLocaleString("nb-NO",{maximumFractionDigits:1})+" "+(g.u==="g"?"kg":"l");
+  if(g.u==="ml"&&a>=100)return(a/100).toLocaleString("nb-NO",{maximumFractionDigits:1})+" dl";
+  return(Math.round(a/5)*5||Math.round(a)||1)+" "+g.u;
 }
 
 /* ---------- Render: Meny ---------- */
@@ -485,9 +570,8 @@ function renderMeny(){
   const el=$("#v-meny");
   const first=addDays(S.start,0), last=addDays(S.start,S.days-1);
   const filled=P.slots.filter(s=>s.id);
-  const cost=planCost(P.slots);
+  const cost=SIM.cost;
   const perPD=cost/S.persons/S.days;
-  // nutrition: per person per day from planned meals
   let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id];E+=kcal(r);pP+=r.mac[0]*4;pF+=r.mac[1]*9;pK+=r.mac[2]*4});
   const kcalDay=E/S.days; const mp={p:pP/E*100||0,f:pF/E*100||0,k:pK/E*100||0};
   const prof=PROFILES[S.profile];
@@ -497,12 +581,16 @@ function renderMeny(){
   const dist=(Math.abs(mp.p-prof.p)+Math.abs(mp.f-prof.f)+Math.abs(mp.k-prof.k));
   const nutStatus=dist<12?["ok","Treffer ernæringsprofilen"]:dist<24?["warn","Nær ernæringsprofilen"]:["over","Avviker fra ernæringsprofilen"];
   const relaxed=P.slots.filter(s=>s.relaxed).length, missing=P.slots.filter(s=>!s.id).length;
+  const restMeals=SIM.info.filter(i=>i&&i.rest.length).length;
+  const wv=SIM.wasteVal, wShare=cost?wv/cost:0;
+  const wStatus=wShare<.08?["ok","Lite svinn"]:wShare<.16?["warn","Noe svinn"]:["over","Mye svinn"];
+  const wPct=Math.min(100,wShare*100);
 
   let h=`<div><h1>${S.days} dager, ${S.persons} ${S.persons===1?"person":"personer"}</h1>
   <p class="lede">${fmtShort(first)} – ${fmtShort(last)} · ${MEALS.filter(m=>S.meals[m]).map(m=>MEAL_LABEL[m].toLowerCase()).join(", ")} · ${DIETS[S.diet].toLowerCase()}</p></div>
   <div class="summary">
     <div class="stats">
-      <div class="stat"><span class="k">Kostnad</span><span class="v">${nf(cost)}<small> kr</small></span></div>
+      <div class="stat"><span class="k">Handlekurv</span><span class="v">${nf(cost)}<small> kr</small></span></div>
       <div class="stat"><span class="k">Per pers./dag</span><span class="v">${nf(perPD)}<small> kr</small></span></div>
       <div class="stat"><span class="k">Kcal/pers./dag</span><span class="v">${nf(kcalDay)}</span></div>
     </div>
@@ -510,6 +598,12 @@ function renderMeny(){
       <div class="meter-head"><span class="lbl">Budsjett</span><span class="val num">${nf(cost)} av ${nf(S.budget)} kr</span></div>
       <div class="track" role="img" aria-label="Brukt ${Math.round(cost/S.budget*100)} prosent av budsjettet"><div class="fill ${over?"over":""}" style="width:${pct}%"></div></div>
       <span class="status ${over?"over":"ok"}">${over?"Over budsjett med "+kr(cost-S.budget):kr(S.budget-cost)+" igjen"}</span>
+    </div>
+    <div class="meter">
+      <div class="meter-head"><span class="lbl">Rester og svinn</span><span class="val num">${kr(wv)} kan gå til spille</span></div>
+      <div class="track" role="img" aria-label="Svinn utgjør ${Math.round(wShare*100)} prosent av handlekurven"><div class="fill ${wStatus[0]==="ok"?"":"warnfill"}" style="width:${wPct}%"></div></div>
+      <span class="status ${wStatus[0]}">${wStatus[1]} · ${Math.round(wShare*100)} % av handlekurven</span>
+      <span class="note">${restMeals} ${restMeals===1?"måltid bruker":"måltider bruker"} rester fra åpnede pakninger.${S.smartRest?"":" Smart bruk av rester er slått av i oppsettet."}</span>
     </div>
     <div class="meter">
       <div class="meter-head"><span class="lbl">Energifordeling</span><span class="val">Mål: ${prof.n.toLowerCase()} ${prof.p}/${prof.f}/${prof.k}</span></div>
@@ -528,14 +622,15 @@ function renderMeny(){
     h+=`<div class="day"><div class="day-head"><h3>${cap(fmtDay(date))}</h3><span class="meta num">${wk?"Helg · ":""}${kr(dayCost)}</span></div><div class="meals">`;
     slots.forEach(s=>{
       if(!s.id){h+=`<div class="empty-slot">${MEAL_LABEL[s.meal]}: ingen oppskrift passer valgene dine.</div>`;return}
-      const r=RBY[s.id];
+      const r=RBY[s.id]; const info=SIM.info[s.idx];
+      const rest=info&&info.rest.length?`<span class="rest">${ICON.leaf}Bruker rest: ${info.rest.map(id=>short(ING[id])).join(", ")}</span>`:"";
       h+=`<div class="meal"><button class="meal-main" data-open="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">${esc(r.n)}</span>
-        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*S.persons)}</span><span class="num">${nf(kcal(r))} kcal</span><span class="num">${r.mac[0]} g protein</span></span></button>
+        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*S.persons)}</span><span class="num">${nf(kcal(r))} kcal</span><span class="num">${r.mac[0]} g protein</span></span>${rest}</button>
         <button class="swap" data-swap="${s.idx}" aria-label="Bytt ${esc(r.n)}" title="Bytt rett">${ICON.swap}</button></div>`;
     });
     h+=`</div></div>`;
   }
-  h+=`<p class="note">Prisene er estimater basert på omtrentlige norske dagligvarepriser og mengden som brukes i oppskriften. Næringsverdiene er omtrentlige per porsjon.</p>`;
+  h+=`<p class="note">Rettene viser verdien av ingrediensene som brukes. Handlekurven og budsjettet teller hele pakninger. Prisene er omtrentlige norske dagligvarepriser, og næringsverdiene er anslag per porsjon.</p>`;
   el.innerHTML=h;
 }
 
@@ -550,13 +645,23 @@ function renderListe(){
   CAT_ORDER.forEach(c=>{ if(!groups[c])return;
     h+=`<div class="group"><h4>${CATS[c]}</h4>`;
     groups[c].forEach(i=>{
-      h+=`<label class="item"><input type="checkbox" data-check="${i.id}" ${checked[i.id]?"checked":""}><span class="box">${ICON.check}</span><span class="iname">${esc(i.name)}</span><span class="iamt num">${i.amt}</span><span class="icost num">${nf(i.cost)} kr</span></label>`;
+      h+=`<label class="item"><input type="checkbox" data-check="${i.id}" ${checked[i.id]?"checked":""}><span class="box">${ICON.check}</span><span class="iname">${esc(i.name)}${i.leftStr?`<small class="${i.fresh?"fresh":""}">Til overs: ${i.leftStr}</small>`:""}</span><span class="iamt num">${i.amt}</span><span class="icost num">${nf(i.cost)} kr</span></label>`;
     });
     h+=`</div>`;
   });
   h+=`<div class="total"><span>Estimert sum</span><span class="big">${kr(total)}</span></div></div>`;
+
+  const waste=Object.entries(SIM.wasteItems).filter(([,a])=>a>1e-6).map(([id,a])=>({g:ING[id],a,v:a*unit(ING[id])})).sort((x,y)=>y.v-x.v);
+  const keep=Object.entries(SIM.left).filter(([id,a])=>a>1e-6&&!fresh(ING[id])).map(([id,a])=>({g:ING[id],a})).sort((x,y)=>x.g.n.localeCompare(y.g.n,"nb"));
+  h+=`<div class="after"><h4>Etter perioden</h4>`;
+  if(waste.length){
+    h+=`<div class="after-head"><span class="t">Ferskvarer som kan gå til spille</span><span class="num">${kr(SIM.wasteVal)}</span></div>`;
+    waste.forEach(w=>{h+=`<div class="wrow"><span>${esc(w.g.n)}</span><span class="num">${fmtQty(w.g,w.a)}</span><span class="num">${nf(w.v)} kr</span></div>`});
+    h+=`<p class="note">Tips: Frys ned kjøtt og fisk du ikke bruker innen to dager, og bruk grønnsaker som er til overs i en suppe eller wok.</p>`;
+  } else h+=`<p class="note">Ingen ferskvarer blir til overs. Alt som åpnes, brukes opp.</p>`;
+  if(keep.length)h+=`<div class="after-head"><span class="t">Til skapet og fryseren</span></div><p class="keep">${keep.map(k=>esc(short(k.g))+" "+fmtQty(k.g,k.a)).join(", ")}</p>`;
+  h+=`</div>`;
   if(pantry.length)h+=`<div class="pantry"><b>Sjekk at du har hjemme</b>${pantry.join(", ")}, salt og pepper.</div>`;
-  h+=`<p class="note">Varer som selges per stykk er rundet opp. Summen kan avvike litt fra menyens kostnad fordi den teller hele stykk.</p>`;
   el.innerHTML=h;
   const b=$("#listBadge"); const left=items.length-done; b.hidden=!left; b.textContent=left;
 }
@@ -578,6 +683,7 @@ function renderOppsett(){
     <div class="field"><span class="t">Måltider</span><div class="chips">${MEALS.map(m=>`<label class="chip"><input type="checkbox" id="f-meal-${m}" data-meal="${m}" ${S.meals[m]?"checked":""}><span>${MEAL_LABEL[m]}</span></label>`).join("")}</div></div>
     <div class="field"><div class="field-row"><label class="t" for="f-tweek">Maks tid på hverdager</label><output class="num" id="o-tweek">${S.tWeek} min</output></div><input type="range" id="f-tweek" min="10" max="90" step="5" value="${S.tWeek}"></div>
     <div class="field"><div class="field-row"><label class="t" for="f-tweekend">Maks tid i helgen</label><output class="num" id="o-tweekend">${S.tWeekend} min</output></div><input type="range" id="f-tweekend" min="10" max="120" step="5" value="${S.tWeekend}"></div>
+    <div class="field"><span class="t">Pakninger og rester</span><div class="chips"><label class="chip"><input type="checkbox" id="f-smart" ${S.smartRest?"checked":""}><span>Bruk opp rester</span></label></div><span class="hint">Velger retter som bruker resten av åpnede pakninger, slik at mindre mat kastes og handlekurven blir billigere.</span></div>
   </div>
   <div class="card">
     <div class="field"><span class="t">Ernæringsprofil</span><span class="hint">Andel av energien fra protein, fett og karbohydrater.</span>
@@ -600,14 +706,14 @@ function stepper(key,val,lbl){return`<div class="stepper" role="group" aria-labe
 /* ---------- Sheet ---------- */
 function openRecipe(idx){
   const s=P.slots[idx]; const r=RBY[s.id]; const date=addDays(S.start,s.d);
-  const m=macroPct(r);
+  const m=macroPct(r); const info=SIM.info[idx]||{rest:[]};
   $("#sheet").innerHTML=`<span class="grab"></span>
    <div><span class="mtype">${MEAL_LABEL[s.meal]} · ${fmtDay(date)}</span><h2 id="sheetTitle">${esc(r.n)}</h2></div>
    <div class="facts"><div class="fact"><b>${r.t}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*S.persons)}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r))}</b><span>kcal/porsjon</span></div><div class="fact"><b>${r.mac[0]} g</b><span>protein</span></div></div>
    <div class="meter"><div class="track"><div class="seg c-p" style="width:${m.p}%"></div><div class="seg c-f" style="width:${m.f}%"></div><div class="seg c-k" style="width:${m.k}%"></div></div>
    <div class="legend"><span><i class="dot c-p"></i>Protein ${r.mac[0]} g</span><span><i class="dot c-f"></i>Fett ${r.mac[1]} g</span><span><i class="dot c-k"></i>Karbo ${r.mac[2]} g</span></div></div>
    <h3>Ingredienser · ${S.persons} ${S.persons===1?"porsjon":"porsjoner"}</h3>
-   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}</span><span>${fmtRecipeAmt(g,a*S.persons)}</span></li>`}).join("")}</ul>
+   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*S.persons)}</span></li>`}).join("")}</ul>
    <h3>Slik gjør du</h3>
    <ol class="steps">${r.s.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
    <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
@@ -625,7 +731,8 @@ function closeSheet(){$("#scrim").hidden=true}
 function swapSlot(idx){
   const s=P.slots[idx]; const {list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
   const used={};P.slots.forEach(x=>{if(x.id)used[x.id]=(used[x.id]||0)+1});
-  const ranked=list.map(r=>({r,sc:score(r,s.meal,used,null)})).sort((a,b)=>a.sc-b.sc).map(x=>x.r);
+  const inv=invBefore(P.slots,idx);
+  const ranked=list.map(r=>({r,sc:score(r,s.meal,used,null,inv,s.d)})).sort((a,b)=>a.sc-b.sc).map(x=>x.r);
   if(ranked.length<2){toast("Ingen andre retter passer dette måltidet");return}
   s.tried=s.tried||[]; s.tried.push(s.id);
   let next=ranked.find(r=>!s.tried.includes(r.id));
@@ -640,7 +747,7 @@ function setTab(t){tab=t;["meny","liste","oppsett"].forEach(x=>$("#v-"+x).hidden
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
-  renderMeny();renderListe();renderOppsett();
+  SIM=simulate(P.slots);renderMeny();renderListe();renderOppsett();
 }
 
 document.addEventListener("click",e=>{
@@ -667,6 +774,7 @@ document.addEventListener("change",e=>{
   if(t.dataset.meal){S.meals[t.dataset.meal]=t.checked;if(!MEALS.some(m=>S.meals[m])){S.meals[t.dataset.meal]=true;t.checked=true;toast("Velg minst ett måltid")}}
   if(t.name==="profile")S.profile=t.value;
   if(t.name==="diet")S.diet=t.value;
+  if(t.id==="f-smart")S.smartRest=t.checked;
   if(t.dataset.al)S.allergies[t.dataset.al]=t.checked;
   updateHints(); store.set("settings",S);
 });
