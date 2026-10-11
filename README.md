@@ -12,3 +12,15 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 - **Logg:** før opp hva du faktisk spiste – som planlagt, med egne tall, eller med anslag fra beskrivelse eller bilde
 
 Publisert som artefakt bruker appen tre tilganger: lagring på Claude-kontoen (synk mellom enheter), hvem som ser siden (for privat lagring per person) og Claude for næringsanslag. Åpnet som lokal fil lagres alt i nettleseren, og anslag gjøres grovt fra standardporsjoner.
+
+## Installere på mobilen (Android)
+
+`docs/` er en installerbar nettapp (PWA) med eget ikon, fullskjerm og offline-støtte. Den må ligge på en HTTPS-adresse før telefonen kan installere den:
+
+1. **Publiser `docs/`**, for eksempel med GitHub Pages: legg repoet på GitHub, gå til *Settings → Pages → Deploy from a branch → main / docs*. Adressen blir `https://<brukernavn>.github.io/<repo>/`.
+2. **Åpne adressen i Chrome på telefonen**, trykk ⋮ → *Installer app* (eller *Legg til på startsiden → Installer*).
+3. Matplan ligger nå i app-skuffen og åpnes i eget vindu.
+
+Etter endringer i `matplan.html`: kjør `python3 build_pwa.py` (krever Pillow) og publiser `docs/` på nytt. Appen oppdaterer seg selv neste gang den åpnes med nett.
+
+I den installerte appen lagres alt lokalt på telefonen, og næringsanslag gjøres grovt fra standardporsjoner. Synk mellom enheter og anslag med Claude (også fra bilde) finnes bare i artefakt-versjonen på claude.ai.
