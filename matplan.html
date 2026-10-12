@@ -725,7 +725,7 @@ function renderMeny(){
       <div class="track" role="img" aria-label="Protein ${Math.round(mp.p)}, fett ${Math.round(mp.f)}, karbohydrat ${Math.round(mp.k)} prosent"><div class="seg c-p" style="width:${mp.p}%"></div><div class="seg c-f" style="width:${mp.f}%"></div><div class="seg c-k" style="width:${mp.k}%"></div></div>
       <div class="legend"><span><i class="dot c-p"></i>Protein ${Math.round(mp.p)} %</span><span><i class="dot c-f"></i>Fett ${Math.round(mp.f)} %</span><span><i class="dot c-k"></i>Karbo ${Math.round(mp.k)} %</span></div>
       <span class="status ${nutStatus[0]}">${nutStatus[1]}</span>
-      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per dag for deg. Med ${nf(avgPlanKcal())} kcal i snitt per dag${trainInEnergy()?" (mer på treningsdager)":""} bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
+      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per dag for deg. Med ${nf(avgPlanKcal())} kcal i snitt per dag bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
     </div>
     ${relaxed||missing?`<span class="note flag">${missing?missing+" måltid mangler oppskrift som passer kostholdet. ":""}${relaxed?relaxed+" måltid tar lengre tid enn tidsgrensen.":""}</span>`:""}
     ${skipped?`<span class="note">${skipped} ${skipped===1?"måltid er":"måltider er"} tatt ut av menyen og handlelisten. Endre det under Oppsett eller ved å trykke på måltidet.</span>`:""}
@@ -1019,7 +1019,7 @@ function renderLogg(){
   const date=addDays(S.start,logDay), ds=iso(date);
   if(cloud.db&&!cloud.loaded.has(monthOf(ds)))loadMonth(monthOf(ds)).then(()=>renderLogg());
   const dl=dayLog(ds), tot=dayTotals(dl), prof=PROFILES[S.profile];
-  const goalK=logBase()+trainBonus(ds);const tg={p:goalK*prof.p/100/4,f:goalK*prof.f/100/9,k:goalK*prof.k/100/4};
+  const goalK=S.kcal+trainDelta(ds);const tg={p:goalK*prof.p/100/4,f:goalK*prof.f/100/9,k:goalK*prof.k/100/4};
   const daySlots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===logDay);
   const remaining=daySlots.filter(s=>s.id&&!(dl&&dl.slots[s.meal])).reduce((a,s)=>a+kcal(RBY[s.id])*myPortion(RBY[s.id],s.meal,s.d),0);
   let loggedDays=0,sumK=0;
@@ -1032,7 +1032,7 @@ function renderLogg(){
   <div class="summary">
     <div class="stats">
       <div class="stat"><span class="k">Spist</span><span class="v">${nf(tot.kcal)}<small> kcal</small></span></div>
-      <div class="stat"><span class="k">Mål${trainBonus(ds)?" + trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Mål${trainDelta(ds)?" (trening)":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
       <div class="stat"><span class="k">Planlagt igjen</span><span class="v">${nf(remaining)}<small> kcal</small></span></div>
     </div>
     <div class="meter">
@@ -1265,7 +1265,7 @@ function energy(){
   return{bmr:Math.round(bmr),tdee:Math.round(tdee),train:Math.round(train),base,target:Math.max(base,Math.round(raw/10)*10),clamped:rawBase<floor,floor};
 }
 function syncKcal(){const e=energy();if(S.me.auto&&e)S.kcal=e.target}
-function logBase(){const e=energy();return S.me.auto&&e?e.base:S.kcal}
+function logBase(){return S.kcal}
 const splitSum = () => ["frokost","lunsj","middag","snacks"].reduce((a,k)=>a+(+S.split[k]||0),0);
 const kosShare = () => Math.max(0,100-splitSum());
 const snackKcal = () => S.snacks.reduce((a,sn)=>a+snackInfo(sn).kcal,0);
@@ -1279,9 +1279,9 @@ function meCard(){
       <div class="field-row"><label class="t" for="me-w">Vekt, kg</label><input type="number" id="me-w" inputmode="decimal" min="35" max="250" step="0.1" value="${m.w}"></div></div>
     <div class="field"><label class="t" for="me-pal">Hverdagsaktivitet</label><select class="sel" id="me-pal">${PAL.map(([v,n,d])=>`<option value="${v}" ${+m.pal===v?"selected":""}>${n} – ${d}</option>`).join("")}</select><span class="hint">Uten trening. Treningsøktene legges til for seg.</span></div>
     <div class="field"><label class="t" for="me-goal">Mål</label><select class="sel" id="me-goal">${GOALS.map(([v,n,d])=>`<option value="${v}" ${+m.goal===v?"selected":""}>${n}${d?" – "+d:""}</option>`).join("")}</select>
-      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Menyen på treningsdager <b>${[...new Set(S.program.flatMap(p=>p.dows))].length?nf(Math.max(...Array.from({length:S.days},(_,d)=>planKcal(d)))):"–"} kcal</b></span><span>Snitt for perioden <b>${nf(avgPlanKcal())} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
+      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Treningsprogram i snitt <b>+${nf(e.train)} kcal</b></span><span>Menyen og loggen <b>${nf(e.target)} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
       <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label><label class="chip"><input type="checkbox" id="me-train" ${m.inclTrain?"checked":""}><span>Ta med treningsprogrammet i menyen</span></label></div>
-      <span class="hint">${m.inclTrain?(S.program.length?`Menyen planlegger større porsjoner på dager med planlagt trening (${S.exFactor} % av anslått forbrenning). I loggen starter hver dag på ${nf(e.base)} kcal, og du får treningskaloriene først når du har logget økten. Hopper du over en økt, går det ekstra du spiser av kosekvoten.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Menyen planlegges uten trening. I loggen gir hver gjennomført økt ekstra kalorier den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
+      <span class="hint">${m.inclTrain?(S.program.length?`Treningsprogrammet (${nf(progAvg()*7)} kcal i uka) er fordelt jevnt over alle dager, så menyen og loggen har samme mål hver dag. Dropper du en planlagt økt, trekkes kaloriene for den fra kosekvoten. Trener du mer enn planlagt, legges det til.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Menyen planlegges uten trening. Hver gjennomført økt legges til kosekvoten den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
     <div class="field"><div class="field-row"><label class="t" for="me-ex">Andel av treningskalorier som legges til</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Når en økt gir ekstra kalorier, legges denne andelen av forbrenningen til dagens mål og kosekvoten. Forbrenning anslås ofte for høyt, så 50–75 % er et trygt utgangspunkt. I menyen brukes samme andel av treningsprogrammet.</span></div>
   </div>`;
 }
@@ -1295,7 +1295,7 @@ function splitCard(){
         <span class="kosrow">Kosekvote</span><span class="kosrow num">${kos} %</span><span class="kc kosrow">${nf(S.kcal*kos/100)} kcal</span></div>
       <div class="chips"><label class="chip"><input type="checkbox" id="sp-scale" ${S.scalePortion?"checked":""}><span>Tilpass min porsjon til fordelingen</span></label></div>
       <span class="hint">${S.scalePortion?"Menyen regner ut hvor stor porsjon du trenger av hver rett for å treffe prosenten for måltidet. Resten av husstanden får standardporsjon, og handlelisten justeres etter det.":"Alle får standardporsjon av hver rett."}</span>
-      ${sum>100?`<span class="flag">Fordelingen er ${sum} %. Trekk ned noe for å få en kosekvote.</span>`:`<span class="hint">Kosekvoten er ${nf(logBase()*kos/100*7)} kcal i uka uten trening, pluss det du tjener på økter du gjennomfører.</span>`}</div>
+      ${sum>100?`<span class="flag">Fordelingen er ${sum} %. Trekk ned noe for å få en kosekvote.</span>`:`<span class="hint">Kosekvoten er ${nf(S.kcal*kos/100*7)} kcal i uka${trainInEnergy()?" når du gjennomfører treningsprogrammet":""}, pluss det du tjener på ekstra trening.</span>`}</div>
     <div class="field"><span class="t">Faste mellommåltider</span><span class="hint">Spises hver dag. Varene legges i handlelisten for én person.</span>
       <div>${S.snacks.map((sn,i)=>{const x=snackInfo(sn);return`<div class="snack"><span>${esc(x.n)}</span><span class="num">${nf(x.kcal)} kcal</span><button class="xbtn" data-sndel="${i}" aria-label="Fjern ${esc(x.n)}">×</button></div>`}).join("")||'<span class="hint">Ingen faste mellommåltider.</span>'}</div>
       <span class="${sk>sb*1.1?"flag":"hint"}">Til sammen ${nf(sk)} kcal av ${nf(sb)} kcal satt av.</span>
@@ -1323,6 +1323,15 @@ const dayTrain = ds => {const dl=dayLog(ds);return(dl&&dl.train)||[]};
 const trainBurn = ds => dayTrain(ds).reduce((a,x)=>a+sessKcal(x),0);
 const trainInEnergy = () => !!(S.me.inclTrain&&S.program.length&&S.me.auto&&meReady());
 const progAvg = () => S.program.reduce((a,p)=>a+sessKcal(p)*p.dows.length,0)/7*S.exFactor/100;
+function plannedBonus(ds){return Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100)}
+function trainDelta(ds){
+  const logged=trainBonus(ds);
+  if(!trainInEnergy())return logged;
+  const planned=plannedBonus(ds);
+  if(ds<iso(new Date()))return logged-planned;
+  return dayTrain(ds).length?logged-planned:0;
+}
+function pendingTrain(ds){return trainInEnergy()&&ds===iso(new Date())&&!dayTrain(ds).length?plannedBonus(ds):0}
 function trainBonus(ds){
   const burn=dayTrain(ds).reduce((a,x)=>{
     return a+sessKcal(x)},0);
@@ -1339,14 +1348,12 @@ function trainLine(date){
 /* ---------- Kosekvote ---------- */
 function weekDates(ds){const d=new Date(ds+"T12:00:00");const off=dowOf(d)-1;return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()-off+i);return iso(x)})}
 function kosDay(ds,future){
-  const share=kosShare()/100;
-  let bonus=trainBonus(ds);
-  if(future&&!dayTrain(ds).length)bonus=Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
+  const share=kosShare()/100,baseEarned=S.kcal*share,base=S.kcal*(1-share);
+  const delta=future?0:trainDelta(ds);
   const dl=dayLog(ds),t=dayTotals(dl);
   const kosE=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
-  const day=logBase()+bonus,base=day*(1-share);
   const used=t.n?kosE+Math.max(0,(t.kcal-kosE)-base):0;
-  return{earned:day*share,bonus,used,kosE,base,logged:t.n>0};
+  return{earned:baseEarned+delta,baseEarned,delta,pending:future?0:pendingTrain(ds),used,kosE,base,logged:t.n>0};
 }
 function kosStatus(ds){
   const wk=weekDates(ds),today=iso(new Date());let carry=0,cur=null,future=0;const days=[];
@@ -1360,11 +1367,12 @@ function kosCard(ds){
   const k=kosStatus(ds),mx=Math.max(1,...k.days.map(d=>Math.max(d.earned,d.used)));
   return`<div class="lcard kos"><div class="lhead"><span class="mtype">Kosekvote</span><span class="plan">Uke ${isoWeek(new Date(ds+"T12:00:00"))} · nullstilles mandag</span></div>
     <div class="kos-top"><div class="kos-big ${k.avail<0?"neg":""}">${nf(k.avail)}<small> kcal igjen i dag</small></div><span class="note">Resten av uka kan du tjene ${nf(k.future)} kcal til.</span></div>
-    <div class="kos-rows"><span>Overført fra tidligere i uka</span><span>${nf(k.carry)}</span><span>Opptjent i dag${k.cur.bonus?" (inkl. trening)":""}</span><span>+${nf(k.cur.earned)}</span><span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
-    <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.earned/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
+    <div class="kos-rows"><span>Overført fra tidligere i uka</span><span>${nf(k.carry)}</span><span>Opptjent i dag</span><span>+${nf(k.cur.baseEarned)}</span>${k.cur.delta?`<span>${k.cur.delta>0?"Trening utover programmet":"Planlagt trening ikke gjennomført"}</span><span>${k.cur.delta>0?"+":"−"}${nf(Math.abs(k.cur.delta))}</span>`:""}<span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
+    ${k.cur.pending?`<p class="note flag" style="margin:0">Dagens planlagte trening er ikke logget ennå. Blir den ikke gjennomført, trekkes ${nf(k.cur.pending)} kcal fra kvoten.</p>`:""}
+    <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${Math.max(0,d.earned)/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
     <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt</span></div>
     <div class="actions"><button class="btn sm primary" data-logedit="x:kos">${ICON.plus}Før opp kos</button></div>
-    <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(logBase()*(1-kosShare()/100))} kcal på en dag uten trening, mer på dager med gjennomført trening), trekkes også det fra. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
+    <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag), trekkes også det fra.${trainInEnergy()?" Treningsprogrammet er fordelt jevnt over uka. Dropper du en planlagt økt, trekkes den fra kvoten. Trener du mer enn planlagt, legges det til.":" Gjennomførte økter legges til kvoten."} Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
 }
 function snackLogCard(ds){
   if(!S.snacks.length)return"";
@@ -1396,7 +1404,7 @@ function renderTrening(){
       <div class="stat"><span class="k">Minutter</span><span class="v">${nf(mins)}</span></div>
       <div class="stat"><span class="k">Forbrent</span><span class="v">${nf(burn)}<small> kcal</small></span></div>
     </div>
-    <span class="note">${cap(fmtDay(date))}: ${nf(trainBurn(ds))} kcal forbrent, ${nf(trainBonus(ds))} kcal (${S.exFactor} %) lagt til dagens mål og kosekvoten.${+S.me.w>0?"":" Legg inn vekten din under Oppsett for bedre anslag (bruker 75 kg)."}</span>
+    <span class="note">${cap(fmtDay(date))}: ${nf(trainBurn(ds))} kcal forbrent, ${trainInEnergy()?`${nf(trainBonus(ds))} kcal (${S.exFactor} %) mot ${nf(plannedBonus(ds))} kcal planlagt i programmet. ${trainDelta(ds)>0?`${nf(trainDelta(ds))} kcal ekstra går til kosekvoten.`:trainDelta(ds)<0?`${nf(-trainDelta(ds))} kcal trekkes fra kosekvoten.`:"Ingen endring i kosekvoten."}`:`${nf(trainBonus(ds))} kcal (${S.exFactor} %) lagt til kosekvoten.`}${+S.me.w>0?"":" Legg inn vekten din under Oppsett for bedre anslag (bruker 75 kg)."}</span>
   </div>`;
   const pl=plannedFor(date),done=dayTrain(ds);
   h+=`<h2 class="section-h">Økter ${fmtDay(date)}</h2>`;
@@ -1519,12 +1527,7 @@ function v4Click(t){
 
 /* ---------- Porsjoner etter kaloribehov ---------- */
 /* Planlagt kaloribehov for en dag i perioden: behov uten trening + andel av de øktene som er planlagt den dagen */
-function planKcal(d){
-  const e=energy();
-  if(d==null||!(S.me.auto&&e))return S.kcal;
-  if(!trainInEnergy())return e.base;
-  return e.base+Math.round(plannedFor(addDays(S.start,d)).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
-}
+function planKcal(d){return S.kcal}
 function avgPlanKcal(){let t=0;for(let d=0;d<S.days;d++)t+=planKcal(d);return t/S.days}
 function myPortion(r,meal,d){
   if(!S.scalePortion||!r)return 1;
