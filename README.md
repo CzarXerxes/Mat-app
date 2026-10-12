@@ -11,6 +11,10 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 - **Måltider som ikke skal planlegges:** ta ut enkeltmåltider eller gjentakende måltider (f.eks. middag på restaurant, frokost på konferanse) med årsak og notat
 - **Logg:** før opp hva du faktisk spiste – som planlagt, med egne tall, eller med anslag fra beskrivelse eller bilde
 
+- **Om deg:** alder, kjønn, høyde, vekt, hverdagsaktivitet og mål gir daglig kaloribehov (Mifflin-St Jeor × aktivitetsnivå ± mål)
+- **Fordeling og kosekvote:** andel av dagens kalorier til frokost, lunsj, middag og faste mellommåltider; resten er kosekvote som overføres dag for dag og nullstilles mandag
+- **Trening:** ukentlig treningsprogram og logg av økter med anslått forbrenning (MET-verdier), som øker dagens mål og kosekvote
+
 Publisert som artefakt bruker appen tre tilganger: lagring på Claude-kontoen (synk mellom enheter), hvem som ser siden (for privat lagring per person) og Claude for næringsanslag. Åpnet som lokal fil lagres alt i nettleseren, og anslag gjøres grovt fra standardporsjoner.
 
 ## Installere på mobilen (Android)

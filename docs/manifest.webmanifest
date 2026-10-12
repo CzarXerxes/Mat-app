@@ -62,6 +62,16 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "Trening",
+      "url": "./#trening",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

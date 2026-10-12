@@ -164,8 +164,8 @@ input[type=range]{width:100%;accent-color:var(--herb)}
 .prof .track{height:6px}
 
 /* Tab bar */
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(460px,100%);z-index:10;display:grid;grid-template-columns:repeat(4,1fr);background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
-.tab{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;font-size:12px;font-weight:600;color:var(--muted);border-radius:12px;position:relative}
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(460px,100%);z-index:10;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+.tab{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;font-size:11.5px;font-weight:600;color:var(--muted);border-radius:12px;position:relative}
 .tab svg{width:23px;height:23px}
 .tab[aria-selected="true"]{color:var(--herb)}
 .badge{position:absolute;top:3px;left:calc(50% + 8px);background:var(--beet);color:#fff;font-size:10.5px;font-family:var(--f-mono);border-radius:999px;padding:1px 6px}
@@ -251,6 +251,46 @@ textarea.txt{resize:vertical;min-height:62px}
 .estout{margin:0}
 .estout.err{color:var(--bad)}
 .section-h{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 2px -6px}
+.trainline{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted);padding-inline:2px;margin-top:-4px}
+.trainline span{display:inline-flex;align-items:center;gap:5px}
+.trainline svg{width:14px;height:14px;color:var(--mustard)}
+.trainline .done{color:var(--herb);font-weight:600}
+.kos{display:flex;flex-direction:column;gap:12px}
+.kos-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.kos-big{font-family:var(--f-display);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.kos-big small{font-family:var(--f-body);font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0}
+.kos-big.neg{color:var(--bad)}
+.kos-rows{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:13px}
+.kos-rows span:nth-child(even){font-family:var(--f-mono);text-align:right}
+.weekstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end}
+.wday{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);font-weight:600;text-transform:capitalize}
+.wbar{width:100%;height:56px;border-radius:7px;background:var(--sunk);position:relative;overflow:hidden}
+.wbar .earn{position:absolute;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--herb) 30%,transparent)}
+.wbar .use{position:absolute;left:0;right:0;bottom:0;background:var(--beet)}
+.wday.future .wbar{opacity:.5}
+.wday.sel{color:var(--ink)}
+.wday.sel .wbar{outline:2px solid var(--herb);outline-offset:1px}
+.legend .c-e{background:color-mix(in srgb,var(--herb) 30%,transparent)}
+select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;max-width:100%}
+.res{background:var(--sunk);border-radius:12px;padding:10px 12px;font-size:13.5px;display:flex;flex-direction:column;gap:4px}
+.res b{font-family:var(--f-mono);font-weight:500}
+.split{display:grid;grid-template-columns:1fr auto auto;gap:8px 12px;align-items:center;font-size:14px}
+.split input{width:70px}
+.split .kc{font-family:var(--f-mono);font-size:13px;color:var(--muted);text-align:right;min-width:72px}
+.split .kosrow{font-weight:600;color:var(--herb)}
+.split .kosrow.kc{color:var(--herb)}
+.snack{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.snack .num{font-size:13px;color:var(--muted)}
+.xbtn{border:0;background:transparent;color:var(--muted);width:32px;height:32px;border-radius:8px;font-size:18px;line-height:1}
+.xbtn:hover{background:var(--sunk);color:var(--ink)}
+.inline-add{display:grid;grid-template-columns:1fr 90px auto;gap:8px}
+.inline-add input{width:100%}
+.sess-meta{font-size:12.5px;color:var(--muted)}
+.prog{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+.prog:last-child{border-bottom:0}
+.prog b{font-weight:600}
+.dows{display:flex;gap:6px;flex-wrap:wrap}
+.dows .chip span{min-width:42px;text-align:center;padding:8px 10px}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -270,6 +310,7 @@ textarea.txt{resize:vertical;min-height:62px}
     <section class="view" id="v-meny" aria-label="Meny"></section>
     <section class="view" id="v-liste" aria-label="Handleliste" hidden></section>
     <section class="view" id="v-logg" aria-label="Logg" hidden></section>
+    <section class="view" id="v-trening" aria-label="Trening" hidden></section>
     <section class="view" id="v-oppsett" aria-label="Oppsett" hidden></section>
   </main>
 </div>
@@ -281,6 +322,8 @@ textarea.txt{resize:vertical;min-height:62px}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.2l2.3 11h10.8l2.2-8H6.3"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Handleliste<span class="badge" id="listBadge" hidden></span></button>
   <button class="tab" role="tab" data-tab="logg" aria-selected="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h10.5a2 2 0 0 1 2 2v15H8a2 2 0 0 1-2-2z"/><path d="M6 18.5a2 2 0 0 1 2-2h10.5"/><path d="M10 8h5M10 11.5h3"/></svg>Logg</button>
+  <button class="tab" role="tab" data-tab="trening" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="1.8"/><path d="M8 21l3.5-5.5L14 17v4M10 12.5l1.5-4.5 4 2 2.5 3M11.5 8l-3.5 1.5L6.5 13"/></svg>Trening</button>
   <button class="tab" role="tab" data-tab="oppsett" aria-selected="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Oppsett</button>
 </nav>
@@ -357,6 +400,9 @@ const ING = {
   buljong:{n:"Buljong",u:"stk",pk:1,pp:0,c:"basis",f:""},
   karri:{n:"Karri",u:"g",pk:1,pp:0,c:"basis",f:""},
   honning:{n:"Honning",u:"g",pk:1,pp:0,c:"basis",f:""},
+  skyr:{n:"Skyr naturell",sn:"skyr",u:"g",pk:160,pp:17,h:5,c:"kjol",f:"d"},
+  eple:{n:"Eple",u:"stk",pk:1,pp:6,h:21,c:"frukt",f:""},
+  proteinbar:{n:"Proteinbar",u:"stk",pk:1,pp:25,c:"torr",f:""},
 };
 
 /* ---------- Data: oppskrifter (mengder per porsjon, makro i gram per porsjon [protein, fett, karbo]) ---------- */
@@ -471,6 +517,8 @@ const ICON = {
   tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
   spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/></svg>',
+  run:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="1.8"/><path d="M8 21l3.5-5.5L14 17v4M10 12.5l1.5-4.5 4 2 2.5 3M11.5 8l-3.5 1.5L6.5 13"/></svg>',
+  flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.6-5.6 4-8.8.6 2 1.8 3.2 3 3.6.3-2.4 1.3-4.4 2.8-6.1.5 3.6 3.2 5.6 3.2 10.2 0 4-2.7 7.3-6.5 7.3z"/></svg>',
   copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></svg>',
 };
 
@@ -495,9 +543,9 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true},exFactor:75,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[]};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
-S.meals=Object.assign({},DEFAULTS.meals,S.meals); S.allergies=Object.assign({},DEFAULTS.allergies,S.allergies);
+normalizeS();
 let P = store.get("plan",null);
 let checked = store.get("checked",{});
 let tab = "meny";
@@ -531,8 +579,8 @@ function quote(inv,r,day){
     const need=a-from;if(need>1e-6){const packs=Math.ceil(need/g.pk-1e-9);marg+=packs*g.pp;if(fresh(g))newLeft+=(packs*g.pk-need)*unit(g)}}
   return{marg,restVal,rest,newLeft};
 }
-function apply(inv,r,day){
-  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;let need=a0*S.persons;
+function apply(inv,r,day,mult){
+  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;let need=a0*(mult??S.persons);
     inv.used[id]=(inv.used[id]||0)+need;
     for(const l of lotsOf(inv,id,day)){const take=Math.min(l.amt,need);l.amt-=take;need-=take;if(need<=1e-6)break}
     if(need>1e-6){const packs=Math.ceil(need/g.pk-1e-9);inv.buy[id]=(inv.buy[id]||0)+packs;inv.lots.push({id,amt:packs*g.pk-need,exp:day+(g.h??9999)})}}
@@ -540,11 +588,11 @@ function apply(inv,r,day){
 function walk(slots,upto,inv,onSlot){
   let day=-1;
   for(let j=0;j<upto;j++){const s=slots[j];
-    if(s.d!==day){for(let d=day+1;d<=s.d;d++)expire(inv,d);day=s.d}
+    if(s.d!==day){for(let d=day+1;d<=s.d;d++){expire(inv,d);applySnacks(inv,d)}day=s.d}
     if(s.id){const r=RBY[s.id];onSlot&&onSlot(j,quote(inv,r,s.d));apply(inv,r,s.d)}}
   return day;
 }
-function invBefore(slots,idx){const inv=newInv();const day=walk(slots,idx,inv);for(let d=day+1;d<=slots[idx].d;d++)expire(inv,d);return inv}
+function invBefore(slots,idx){const inv=newInv();const day=walk(slots,idx,inv);for(let d=day+1;d<=slots[idx].d;d++){expire(inv,d);applySnacks(inv,d)}return inv}
 function simulate(slots){
   const inv=newInv();const info=[];
   walk(slots,slots.length,inv,(j,q)=>info[j]=q);
@@ -569,7 +617,7 @@ function score(r,meal,used,prevPr,inv,day){
 function generate(seed){
   const rand=rng(seed);const used={};const slots=[];let prevPr=null;const inv=newInv();
   for(let d=0;d<S.days;d++){
-    expire(inv,d);
+    expire(inv,d);applySnacks(inv,d);
     const date=addDays(S.start,d);const maxT=slotMaxTime(date);
     for(const meal of MEALS){if(!S.meals[meal])continue;
       if(skips[iso(date)+"|"+meal]){slots.push({d,meal,id:null,skip:true});continue}
@@ -705,7 +753,7 @@ function renderMeny(){
     const date=addDays(S.start,d); const wk=date.getDay()===0||date.getDay()===6;
     const slots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===d);
     const dayCost=slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*S.persons:0),0);
-    h+=`<div class="day"><div class="day-head"><h3>${cap(fmtDay(date))}</h3><span class="meta num">${wk?"Helg · ":""}${kr(dayCost)}</span></div><div class="meals">`;
+    h+=`<div class="day"><div class="day-head"><h3>${cap(fmtDay(date))}</h3><span class="meta num">${wk?"Helg · ":""}${kr(dayCost)}</span></div>${trainLine(date)}<div class="meals">`;
     slots.forEach(s=>{
       if(s.skip){const sk=skips[slotKey(s)]||{r:"annet"};
         h+=`<div class="meal skipped"><button class="meal-main" data-skipopen="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]} · ikke planlagt</span><span class="mname">${esc(REASONS[sk.r]||"Annet")}</span>${sk.note?`<span class="mmeta">${esc(sk.note)}</span>`:""}${loggedTag(s)}</button>
@@ -777,8 +825,10 @@ function renderOppsett(){
   <div class="card">
     <div class="field"><span class="t">Ernæringsprofil</span><span class="hint">Andel av energien fra protein, fett og karbohydrater.</span>
       <div class="profiles">${Object.entries(PROFILES).map(([k,p])=>`<label class="prof"><input type="radio" name="profile" id="f-prof-${k}" value="${k}" ${S.profile===k?"checked":""}><span class="pc"><b>${p.n}</b><small>${p.d}</small><span class="track"><span class="seg c-p" style="width:${p.p}%"></span><span class="seg c-f" style="width:${p.f}%"></span><span class="seg c-k" style="width:${p.k}%"></span></span><small class="num">${p.p} / ${p.f} / ${p.k} %</small></span></label>`).join("")}</div></div>
-    <div class="field"><div class="field-row"><label class="t" for="f-kcal">Energibehov per person</label><input type="number" id="f-kcal" inputmode="numeric" min="1200" max="4500" step="100" value="${S.kcal}"></div><span class="hint">kcal per dag. Brukes til å vurdere om porsjonene er store nok.</span></div>
+    <div class="field"><div class="field-row"><label class="t" for="f-kcal">Energibehov per person</label><input type="number" id="f-kcal" inputmode="numeric" min="1200" max="4500" step="10" value="${S.kcal}" ${S.me.auto&&meReady()?"disabled":""}></div><span class="hint">${S.me.auto&&meReady()?"kcal per dag, beregnet fra «Om deg».":"kcal per dag. Fyll inn «Om deg» for å få det beregnet."}</span></div>
   </div>
+  ${meCard()}
+  ${splitCard()}
   <div class="card">
     <div class="field"><span class="t">Kosthold</span><div class="chips">${Object.entries(DIETS).map(([k,n])=>`<label class="chip"><input type="radio" name="diet" id="f-diet-${k}" value="${k}" ${S.diet===k?"checked":""}><span>${n}</span></label>`).join("")}</div></div>
     <div class="field"><span class="t">Hensyn</span><div class="chips">
@@ -834,11 +884,11 @@ function newPlan(seed){P=generate(seed??Math.floor(Math.random()*1e9));checked={
 function persistLocal(){store.set("settings",S);store.set("plan",P);store.set("checked",checked);store.set("skips",skips);store.set("meta",META)}
 function save(){META.updatedAt=Date.now();persistLocal();queueState()}
 let tt; function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2200)}
-function setTab(t){tab=t;["meny","liste","logg","oppsett"].forEach(x=>$("#v-"+x).hidden=x!==t);document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));store.set("tab",t);window.scrollTo(0,0)}
+function setTab(t){tab=t;["meny","liste","logg","trening","oppsett"].forEach(x=>$("#v-"+x).hidden=x!==t);document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));store.set("tab",t);window.scrollTo(0,0)}
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
-  SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderOppsett();
+  SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
 }
 
 document.addEventListener("click",e=>{
@@ -852,13 +902,14 @@ document.addEventListener("click",e=>{
   if(t.dataset.unskip!==undefined){const s=P.slots[+t.dataset.unskip];if(t.hasAttribute("data-close"))closeSheet();setSkips([slotKey(s)],null);return toast(MEAL_LABEL[s.meal]+" er planlagt igjen")}
   if(t.dataset.cell!==undefined){const idx=+t.dataset.cell,s=P.slots[idx];if(!s)return;if(s.skip){setSkips([slotKey(s)],null);return toast(MEAL_LABEL[s.meal]+" er planlagt igjen")}return openSkip(idx)}
   if(t.id==="skipSave")return saveSkip(+t.dataset.idx);
-  if(t.dataset.logday!==undefined){logDay=+t.dataset.logday;return renderLogg()}
+  if(t.dataset.logday!==undefined){logDay=+t.dataset.logday;renderLogg();renderTrening();return}
   if(t.dataset.quick!==undefined)return quickLog(+t.dataset.quick);
   if(t.dataset.logedit!==undefined)return openLog(t.dataset.logedit);
   if(t.dataset.logdel!==undefined)return deleteLog(t.dataset.logdel);
   if(t.dataset.portion!==undefined)return pickPortion(+t.dataset.portion);
   if(t.id==="l-est")return estimate();
   if(t.id==="l-save")return saveLogEntry();
+  if(v4Click(t))return;
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
@@ -869,6 +920,7 @@ $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()})
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(v4Change(t))return;
   if(t.id==="l-photo"){pickPhoto(t);return}
   if(t.name==="l-type"||t.name==="sk-r"||t.name==="sk-rep"||(t.id&&/^(l-|sk-)/.test(t.id)))return;
   if(t.dataset.check){checked[t.dataset.check]=t.checked;save();renderListe();return}
@@ -884,6 +936,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
+  if(v4Input(t))return;
   if(["l-kcal","l-p","l-f","l-k"].includes(t.id)){LOGCTX.src="manual";document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));return}
   if(t.id==="l-desc"||t.id==="sk-note")return;
   if(t.id==="f-tweek"){S.tWeek=+t.value;$("#o-tweek").textContent=S.tWeek+" min"}
@@ -963,10 +1016,10 @@ function skipMatrix(){
 
 /* ---------- Logg ---------- */
 const SRC = {plan:"Fra menyen", manual:"Oppgitt", ai:"Anslått av Claude", db:"Grovt anslag"};
-const LOG_TYPES = ["Mellommåltid","Frokost","Lunsj","Middag","Kveldsmat"];
+const LOG_TYPES = ["Mellommåltid","Kos","Frokost","Lunsj","Middag","Kveldsmat"];
 let LOGCTX = {};
 const monthOf = ds => ds.slice(0,7);
-function dayLog(ds,create){const m=monthOf(ds);if(!LOG[m]){if(!create)return null;LOG[m]={}}if(!LOG[m][ds]){if(!create)return null;LOG[m][ds]={slots:{},extra:[]}}return LOG[m][ds]}
+function dayLog(ds,create){const m=monthOf(ds);if(!LOG[m]){if(!create)return null;LOG[m]={}}if(!LOG[m][ds]){if(!create)return null;LOG[m][ds]={slots:{},extra:[],train:[]}}return LOG[m][ds]}
 function saveLog(ds){const m=monthOf(ds);LOGMETA[m]=Date.now();store.set("log",LOG);store.set("logmeta",LOGMETA);queueLog(m)}
 function dayTotals(dl){const t={kcal:0,p:0,f:0,k:0,n:0};if(!dl)return t;[...Object.values(dl.slots||{}),...(dl.extra||[])].forEach(e=>{t.kcal+=+e.kcal||0;t.p+=+e.p||0;t.f+=+e.f||0;t.k+=+e.k||0;t.n++});return t}
 const portionLabel = p => p===.5?"½":p===1.5?"1½":String(p);
@@ -989,7 +1042,7 @@ function renderLogg(){
   const remaining=daySlots.filter(s=>s.id&&!(dl&&dl.slots[s.meal])).reduce((a,s)=>a+kcal(RBY[s.id]),0);
   let loggedDays=0,sumK=0;
   for(let d=0;d<S.days;d++){const t=dayTotals(dayLog(iso(addDays(S.start,d))));if(t.n){loggedDays++;sumK+=t.kcal}}
-  const pct=Math.min(100,tot.kcal/S.kcal*100), over=tot.kcal>S.kcal*1.1;
+  const goal=S.kcal+trainBonus(ds);const pct=Math.min(100,tot.kcal/goal*100), over=tot.kcal>goal*1.1;
   const bar=(lbl,v,t,c)=>`<span>${lbl}</span><span class="track"><span class="fill ${c}" style="width:${Math.min(100,v/t*100)}%"></span></span><span class="num">${nf(v)} / ${nf(t)} g</span>`;
   let h=`<div><h1>Logg</h1><p class="lede">Før opp hva du faktisk har spist. Loggen gjelder deg, ikke hele husstanden.</p></div>
   <div class="daychips" role="group" aria-label="Velg dag">${Array.from({length:S.days},(_,d)=>{const dt=addDays(S.start,d);const has=dayTotals(dayLog(iso(dt))).n>0;
@@ -997,16 +1050,17 @@ function renderLogg(){
   <div class="summary">
     <div class="stats">
       <div class="stat"><span class="k">Spist</span><span class="v">${nf(tot.kcal)}<small> kcal</small></span></div>
-      <div class="stat"><span class="k">Mål</span><span class="v">${nf(S.kcal)}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Mål${trainBonus(ds)?" + trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
       <div class="stat"><span class="k">Planlagt igjen</span><span class="v">${nf(remaining)}<small> kcal</small></span></div>
     </div>
     <div class="meter">
-      <div class="meter-head"><span class="lbl">${cap(fmtDay(date))}</span><span class="val num">${Math.round(tot.kcal/S.kcal*100)} % av dagsbehovet</span></div>
-      <div class="track" role="img" aria-label="${Math.round(tot.kcal/S.kcal*100)} prosent av dagsbehovet"><div class="fill ${over?"over":""}" style="width:${pct}%"></div></div>
+      <div class="meter-head"><span class="lbl">${cap(fmtDay(date))}</span><span class="val num">${Math.round(tot.kcal/goal*100)} % av dagsbehovet</span></div>
+      <div class="track" role="img" aria-label="${Math.round(tot.kcal/goal*100)} prosent av dagsbehovet"><div class="fill ${over?"over":""}" style="width:${pct}%"></div></div>
     </div>
     <div class="mini">${bar("Protein",tot.p,tg.p,"c-p")}${bar("Fett",tot.f,tg.f,"c-f")}${bar("Karbo",tot.k,tg.k,"c-k")}</div>
     <span class="note">${loggedDays} av ${S.days} dager i perioden har logg${loggedDays?` · snitt ${nf(sumK/loggedDays)} kcal per logget dag`:""}.</span>
   </div>`;
+  h+=kosCard(ds);
   daySlots.forEach(s=>{
     const e=dl&&dl.slots[s.meal]; const sk=s.skip&&skips[slotKey(s)];
     const plan=s.id?esc(RBY[s.id].n):sk?"Ikke planlagt · "+esc(REASONS[sk.r]||"Annet"):"Ingen rett planlagt";
@@ -1016,6 +1070,7 @@ function renderLogg(){
     h+=`</div>`;
   });
   const extra=(dl&&dl.extra)||[];
+  h+=snackLogCard(ds);
   h+=`<h2 class="section-h">Andre måltider og mellommåltider</h2>`;
   extra.forEach((e,i)=>{h+=`<div class="lcard"><div class="lhead"><span class="mtype">${esc(e.type||"Mellommåltid")}</span></div>${entryHtml(e,"x:"+i)}</div>`});
   h+=`<button class="btn" data-logedit="x:new">${ICON.plus}Legg til måltid eller mellommåltid</button>`;
@@ -1186,7 +1241,7 @@ async function initCloud(){
     const st=await db.doc(`data/users/${uid}/state`).get();
     if(st.exists&&(st.data().updatedAt||0)>(META.updatedAt||0)){
       const d=clean(st.data());
-      S=Object.assign({},DEFAULTS,d.settings||{});S.meals=Object.assign({},DEFAULTS.meals,S.meals);S.allergies=Object.assign({},DEFAULTS.allergies,S.allergies);
+      S=Object.assign({},DEFAULTS,d.settings||{});normalizeS();
       P=d.plan||null;checked=d.checked||{};skips=d.skips||{};META.updatedAt=d.updatedAt;ensurePlan();persistLocal();
     } else queueState();
     const months=new Set([...Object.keys(LOG),monthOf(iso(addDays(S.start,0))),monthOf(iso(addDays(S.start,S.days-1))),monthOf(iso(new Date()))]);
@@ -1195,8 +1250,275 @@ async function initCloud(){
   }catch(e){console.warn("Kunne ikke koble til lagring",e&&e.code)}
 }
 
+/* ---------- Om deg, fordeling, faste mellommåltider ---------- */
+function normalizeS(){
+  S.meals=Object.assign({},DEFAULTS.meals,S.meals);S.allergies=Object.assign({},DEFAULTS.allergies,S.allergies);
+  S.me=Object.assign({},DEFAULTS.me,S.me);S.split=Object.assign({},DEFAULTS.split,S.split);
+  if(!Array.isArray(S.snacks))S.snacks=DEFAULTS.snacks.map(x=>({...x}));
+  if(!Array.isArray(S.program))S.program=[];
+  if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
+}
+const PAL = [[1.2,"Stillesittende","Kontorjobb, lite gåing"],[1.375,"Litt aktiv","Noe gåing i hverdagen"],[1.55,"Aktiv","Står eller går mye"],[1.725,"Fysisk tungt arbeid","Bygg, pleie, lager"]];
+const GOALS = [[-500,"Ned i vekt","ca. 0,5 kg i uka"],[-250,"Rolig ned i vekt","ca. 0,25 kg i uka"],[0,"Holde vekten",""],[250,"Opp i vekt","ca. 0,25 kg i uka"]];
+const SNACK_CAT = [
+  {id:"banan",n:"Banan",kcal:105,p:1,f:0,k:27,i:[["banan",1]]},
+  {id:"skyr",n:"Skyr naturell, 160 g",kcal:100,p:17,f:0,k:6,i:[["skyr",160]]},
+  {id:"eple",n:"Eple",kcal:80,p:0,f:0,k:20,i:[["eple",1]]},
+  {id:"notter",n:"Nøtter, 30 g",kcal:180,p:6,f:15,k:6,i:[["notter",30]]},
+  {id:"gulrot",n:"Gulrot",kcal:30,p:1,f:0,k:6,i:[["gulrot",80]]},
+  {id:"knekke",n:"Knekkebrød med ost",kcal:110,p:6,f:5,k:10,i:[["knekkebrod",15],["ost",15]]},
+  {id:"yogbaer",n:"Gresk yoghurt med bær",kcal:170,p:12,f:7,k:14,i:[["yoghurt",125],["baer",50]]},
+  {id:"proteinbar",n:"Proteinbar",kcal:200,p:20,f:7,k:15,i:[["proteinbar",1]]},
+];
+const SNACK_BY = Object.fromEntries(SNACK_CAT.map(x=>[x.id,x]));
+const snackInfo = sn => sn.id&&SNACK_BY[sn.id]?SNACK_BY[sn.id]:{n:sn.n||"Mellommåltid",kcal:+sn.kcal||0,p:+sn.p||0,f:+sn.f||0,k:+sn.k||0,i:[]};
+function applySnacks(inv,d){const ings=S.snacks.flatMap(sn=>snackInfo(sn).i);if(ings.length)apply(inv,{i:ings},d,1)}
+function meReady(){const m=S.me;return m.sex&&+m.age>0&&+m.h>0&&+m.w>0}
+function energy(){
+  const m=S.me;if(!meReady())return null;
+  const bmr=10*m.w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161);
+  const tdee=bmr*m.pal, raw=tdee+(+m.goal), floor=m.sex==="m"?1500:1200;
+  return{bmr:Math.round(bmr),tdee:Math.round(tdee),target:Math.max(floor,Math.round(raw/10)*10),clamped:raw<floor,floor};
+}
+function syncKcal(){const e=energy();if(S.me.auto&&e)S.kcal=e.target}
+const splitSum = () => ["frokost","lunsj","middag","snacks"].reduce((a,k)=>a+(+S.split[k]||0),0);
+const kosShare = () => Math.max(0,100-splitSum());
+const snackKcal = () => S.snacks.reduce((a,sn)=>a+snackInfo(sn).kcal,0);
+function meCard(){
+  const m=S.me,e=energy();
+  return `<div class="card">
+    <div class="field"><span class="t">Om deg</span><span class="hint">Brukes til å regne ut ditt daglige kaloribehov og hva du forbrenner på trening. Gjelder deg, ikke hele husstanden.</span>
+      <div class="chips"><label class="chip"><input type="radio" name="me-sex" value="k" ${m.sex==="k"?"checked":""}><span>Kvinne</span></label><label class="chip"><input type="radio" name="me-sex" value="m" ${m.sex==="m"?"checked":""}><span>Mann</span></label></div></div>
+    <div class="field"><div class="field-row"><label class="t" for="me-age">Alder</label><input type="number" id="me-age" inputmode="numeric" min="14" max="100" value="${m.age}"></div>
+      <div class="field-row"><label class="t" for="me-h">Høyde, cm</label><input type="number" id="me-h" inputmode="numeric" min="120" max="230" value="${m.h}"></div>
+      <div class="field-row"><label class="t" for="me-w">Vekt, kg</label><input type="number" id="me-w" inputmode="decimal" min="35" max="250" step="0.1" value="${m.w}"></div></div>
+    <div class="field"><label class="t" for="me-pal">Hverdagsaktivitet</label><select class="sel" id="me-pal">${PAL.map(([v,n,d])=>`<option value="${v}" ${+m.pal===v?"selected":""}>${n} – ${d}</option>`).join("")}</select><span class="hint">Uten trening. Treningsøktene legges til for seg.</span></div>
+    <div class="field"><label class="t" for="me-goal">Mål</label><select class="sel" id="me-goal">${GOALS.map(([v,n,d])=>`<option value="${v}" ${+m.goal===v?"selected":""}>${n}${d?" – "+d:""}</option>`).join("")}</select>
+      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål <b>${nf(e.target)} kcal per dag</b></span>${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
+      <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label></div>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
+    <div class="field"><div class="field-row"><label class="t" for="me-ex">Treningskalorier du kan spise opp</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Forbrenning fra trening anslås ofte for høyt. 50–75 % er et trygt utgangspunkt.</span></div>
+  </div>`;
+}
+function splitCard(){
+  const sum=splitSum(),kos=kosShare(),sb=S.kcal*(+S.split.snacks||0)/100,sk=snackKcal();
+  const row=(k,lbl)=>`<label for="sp-${k}">${lbl}</label><span><input type="number" id="sp-${k}" inputmode="numeric" min="0" max="100" value="${S.split[k]}"> %</span><span class="kc">${nf(S.kcal*(+S.split[k]||0)/100)} kcal</span>`;
+  const avail=SNACK_CAT.filter(c=>!S.snacks.some(x=>x.id===c.id));
+  return `<div class="card">
+    <div class="field"><span class="t">Fordeling av dagens kalorier</span><span class="hint">Hvor mye av ${nf(S.kcal)} kcal som skal gå til måltider og faste mellommåltider. Resten blir kosekvote.</span>
+      <div class="split">${row("frokost","Frokost")}${row("lunsj","Lunsj")}${row("middag","Middag")}${row("snacks","Faste mellommåltider")}
+        <span class="kosrow">Kosekvote</span><span class="kosrow num">${kos} %</span><span class="kc kosrow">${nf(S.kcal*kos/100)} kcal</span></div>
+      ${sum>100?`<span class="flag">Fordelingen er ${sum} %. Trekk ned noe for å få en kosekvote.</span>`:`<span class="hint">Kosekvoten er ${nf(S.kcal*kos/100*7)} kcal i uka, pluss det du tjener på trening.</span>`}</div>
+    <div class="field"><span class="t">Faste mellommåltider</span><span class="hint">Spises hver dag. Varene legges i handlelisten for én person.</span>
+      <div>${S.snacks.map((sn,i)=>{const x=snackInfo(sn);return`<div class="snack"><span>${esc(x.n)}</span><span class="num">${nf(x.kcal)} kcal</span><button class="xbtn" data-sndel="${i}" aria-label="Fjern ${esc(x.n)}">×</button></div>`}).join("")||'<span class="hint">Ingen faste mellommåltider.</span>'}</div>
+      <span class="${sk>sb*1.1?"flag":"hint"}">Til sammen ${nf(sk)} kcal av ${nf(sb)} kcal satt av.</span>
+      ${avail.length?`<div class="chips">${avail.map(c=>`<button type="button" class="chip-btn" data-snadd="${c.id}">+ ${esc(c.n)}</button>`).join("")}</div>`:""}
+      <div class="inline-add"><input type="text" class="txt" id="sn-name" placeholder="Annet, f.eks. smoothie" maxlength="40"><input type="number" class="txt" id="sn-kcal" placeholder="kcal" min="0" inputmode="numeric"><button class="btn sm" id="sn-add">Legg til</button></div></div>
+  </div>`;
+}
+
+/* ---------- Trening ---------- */
+const ACTS = {
+  lop:{n:"Løping",met:[7,9.8,11.5]}, gaa:{n:"Gåtur",met:[2.8,3.5,4.5]}, tur:{n:"Fjelltur eller skogstur",met:[5,6.5,8]},
+  sykkel:{n:"Sykling",met:[5.8,7.5,10]}, spinning:{n:"Spinning",met:[6.8,8.5,10.5]}, styrke:{n:"Styrketrening",met:[3.5,5,6]},
+  hiit:{n:"Intervall, HIIT eller crossfit",met:[6,8,10]}, svom:{n:"Svømming",met:[6,8,10]}, langrenn:{n:"Langrenn",met:[7,9,12.5]},
+  yoga:{n:"Yoga eller tøying",met:[2.5,3,4]}, ballsport:{n:"Fotball eller ballsport",met:[6,8,10]}, racket:{n:"Padel, tennis eller badminton",met:[5,7,8]},
+  annet:{n:"Annen trening",met:[4,6,8]},
+};
+const INTS = ["Lett","Moderat","Hard"];
+const DOWS = ["Man","Tir","Ons","Tor","Fre","Lør","Søn"];
+const dowOf = d => ((d.getDay()+6)%7)+1;
+const weightKg = () => +S.me.w>0?+S.me.w:75;
+function sessKcal(x){if(x.kcal!=null&&x.kcal!=="")return Math.round(+x.kcal);const a=ACTS[x.act]||ACTS.annet;return Math.round((a.met[x.int??1]-1)*weightKg()*(+x.min||0)/60)}
+const sessName = x => (ACTS[x.act]||ACTS.annet).n;
+const plannedFor = date => S.program.filter(p=>p.dows.includes(dowOf(date)));
+const dayTrain = ds => {const dl=dayLog(ds);return(dl&&dl.train)||[]};
+const trainBurn = ds => dayTrain(ds).reduce((a,x)=>a+sessKcal(x),0);
+const trainBonus = ds => Math.round(trainBurn(ds)*S.exFactor/100);
+function trainLine(date){
+  const ds=iso(date),pl=plannedFor(date),done=dayTrain(ds);
+  if(!pl.length&&!done.length)return"";
+  const parts=pl.map(p=>{const d=done.find(x=>x.planId===p.id);return`<span class="${d?"done":""}">${ICON.run}${esc(sessName(p))} ${p.min} min${d?" · gjennomført":""}</span>`});
+  done.filter(x=>!x.planId).forEach(x=>parts.push(`<span class="done">${ICON.run}${esc(sessName(x))} ${x.min} min · gjennomført</span>`));
+  return`<div class="trainline">${parts.join("")}</div>`;
+}
+
+/* ---------- Kosekvote ---------- */
+function weekDates(ds){const d=new Date(ds+"T12:00:00");const off=dowOf(d)-1;return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()-off+i);return iso(x)})}
+function kosDay(ds,future){
+  const share=kosShare()/100,base=S.kcal*(1-share);
+  let bonus=trainBonus(ds);
+  if(future&&!dayTrain(ds).length)bonus=Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
+  const t=dayTotals(dayLog(ds));
+  return{earned:S.kcal*share+bonus,bonus,used:t.n?Math.max(0,t.kcal-base):0,base,logged:t.n>0};
+}
+function kosStatus(ds){
+  const wk=weekDates(ds),today=iso(new Date());let carry=0,cur=null,future=0;const days=[];
+  for(const x of wk){const isFut=x>today;const k=kosDay(x,isFut);days.push({ds:x,...k,fut:isFut});
+    if(x<ds)carry+=k.earned-k.used;else if(x===ds)cur=k;else future+=k.earned;}
+  const avail=carry+cur.earned-cur.used;
+  return{carry,cur,avail,future,days,weekLeft:avail+future};
+}
+function kosCard(ds){
+  if(kosShare()<=0)return`<div class="lcard"><div class="lhead"><span class="mtype">Kosekvote</span></div><p class="note" style="margin:0">Fordelingen bruker hele dagsbehovet, så det er ingen kosekvote. Juster den under Oppsett.</p></div>`;
+  const k=kosStatus(ds),mx=Math.max(1,...k.days.map(d=>Math.max(d.earned,d.used)));
+  return`<div class="lcard kos"><div class="lhead"><span class="mtype">Kosekvote</span><span class="plan">Uke ${isoWeek(new Date(ds+"T12:00:00"))} · nullstilles mandag</span></div>
+    <div class="kos-top"><div class="kos-big ${k.avail<0?"neg":""}">${nf(k.avail)}<small> kcal igjen i dag</small></div><span class="note">Resten av uka kan du tjene ${nf(k.future)} kcal til.</span></div>
+    <div class="kos-rows"><span>Overført fra tidligere i uka</span><span>${nf(k.carry)}</span><span>Opptjent i dag${k.cur.bonus?" (inkl. trening)":""}</span><span>+${nf(k.cur.earned)}</span><span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
+    <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.earned/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
+    <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt</span></div>
+    <p class="note" style="margin:0">Alt du spiser utover måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag) trekkes fra kvoten. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
+}
+function snackLogCard(ds){
+  if(!S.snacks.length)return"";
+  const dl=dayLog(ds),ex=(dl&&dl.extra)||[];
+  return`<div class="lcard"><div class="lhead"><span class="mtype">Faste mellommåltider</span><span class="plan">${nf(snackKcal())} kcal</span></div>
+    ${S.snacks.map((sn,i)=>{const x=snackInfo(sn);const done=ex.some(e=>e.snackKey===(sn.id||sn.n));
+      return`<div class="snack"><span>${esc(x.n)}</span><span class="num">${nf(x.kcal)} kcal</span>${done?`<span class="logged">${ICON.tick}Spist</span>`:`<button class="btn sm" data-snlog="${i}">Spist</button>`}</div>`}).join("")}</div>`;
+}
+function logSnack(i){
+  const sn=S.snacks[i];if(!sn)return;const x=snackInfo(sn);const ds=iso(addDays(S.start,logDay));
+  dayLog(ds,true).extra.push({name:x.n,kcal:x.kcal,p:x.p,f:x.f,k:x.k,src:"plan",type:"Mellommåltid",snackKey:sn.id||sn.n,t:Date.now()});
+  saveLog(ds);renderLogg();renderMeny();toast("Lagt i loggen");
+}
+
+/* ---------- Trening: visning ---------- */
+function renderTrening(){
+  const el=$("#v-trening");if(!el)return;
+  const todayIdx=(()=>{const t=iso(new Date());for(let d=0;d<S.days;d++)if(iso(addDays(S.start,d))===t)return d;return -1})();
+  if(logDay===null||logDay>=S.days)logDay=todayIdx>=0?todayIdx:0;
+  const date=addDays(S.start,logDay),ds=iso(date);
+  const wk=weekDates(ds);let plannedN=0,doneN=0,mins=0,burn=0;
+  wk.forEach(x=>{const dt=new Date(x+"T12:00:00");plannedN+=plannedFor(dt).length;const tr=dayTrain(x);doneN+=tr.length;mins+=tr.reduce((a,s)=>a+(+s.min||0),0);burn+=tr.reduce((a,s)=>a+sessKcal(s),0)});
+  let h=`<div><h1>Trening</h1><p class="lede">Legg inn treningsprogrammet ditt og logg øktene. Forbrenningen legges til dagens kalorier og kosekvoten.</p></div>
+  <div class="daychips" role="group" aria-label="Velg dag">${Array.from({length:S.days},(_,d)=>{const dt=addDays(S.start,d);const has=dayTrain(iso(dt)).length>0;
+    return`<button class="dchip ${d===logDay?"on":""} ${d===todayIdx?"today":""}" data-logday="${d}" aria-pressed="${d===logDay}">${new Intl.DateTimeFormat("nb-NO",{weekday:"short"}).format(dt).replace(".","")}<b>${dt.getDate()}</b>${has?'<i class="dotlog" aria-label="har økt"></i>':""}</button>`}).join("")}</div>
+  <div class="summary">
+    <div class="stats">
+      <div class="stat"><span class="k">Økter uke ${isoWeek(date)}</span><span class="v">${doneN}<small> av ${plannedN}</small></span></div>
+      <div class="stat"><span class="k">Minutter</span><span class="v">${nf(mins)}</span></div>
+      <div class="stat"><span class="k">Forbrent</span><span class="v">${nf(burn)}<small> kcal</small></span></div>
+    </div>
+    <span class="note">${cap(fmtDay(date))}: ${nf(trainBurn(ds))} kcal forbrent, ${nf(trainBonus(ds))} kcal (${S.exFactor} %) lagt til dagens mål og kosekvoten.${+S.me.w>0?"":" Legg inn vekten din under Oppsett for bedre anslag (bruker 75 kg)."}</span>
+  </div>`;
+  const pl=plannedFor(date),done=dayTrain(ds);
+  h+=`<h2 class="section-h">Økter ${fmtDay(date)}</h2>`;
+  pl.forEach(p=>{const d=done.findIndex(x=>x.planId===p.id);
+    h+=`<div class="lcard"><div class="lhead"><span class="mtype">Planlagt</span><span class="plan">${esc(sessName(p))} · ${p.min} min · ${INTS[p.int].toLowerCase()}</span></div>`;
+    if(d>=0)h+=sessHtml(done[d],d);
+    else h+=`<div class="actions"><button class="btn sm primary" data-tdone="${p.id}">${ICON.tick}Gjennomført · ≈ ${nf(sessKcal(p))} kcal</button><button class="btn sm" data-topen="p:${p.id}">Endre og logg</button></div>`;
+    h+=`</div>`});
+  done.forEach((x,i)=>{if(x.planId&&pl.some(p=>p.id===x.planId))return;h+=`<div class="lcard"><div class="lhead"><span class="mtype">Økt</span></div>${sessHtml(x,i)}</div>`});
+  if(!pl.length&&!done.length)h+=`<p class="note">Ingen økter planlagt denne dagen.</p>`;
+  h+=`<button class="btn" data-topen="x:new">${ICON.plus}Logg en økt</button>`;
+  h+=`<h2 class="section-h">Treningsprogram</h2><div class="card" style="padding-block:6px">${S.program.length?S.program.map(p=>`<div class="prog"><div><b>${esc(sessName(p))}</b><div class="sess-meta">${p.dows.map(d=>DOWS[d-1]).join(", ")} · ${p.min} min · ${INTS[p.int].toLowerCase()} · ≈ ${nf(sessKcal(p))} kcal${p.note?" · "+esc(p.note):""}</div></div><div class="actions"><button class="btn sm" data-popen="${p.id}">Endre</button></div></div>`).join(""):'<p class="note">Ingen økter i programmet ennå.</p>'}</div>
+  <button class="btn" data-popen="new">${ICON.plus}Legg til økt i programmet</button>`;
+  el.innerHTML=h;
+}
+function sessHtml(x,i){
+  return`<div class="lentry"><div><b>${esc(sessName(x))}</b><span class="srctag">${x.kcal!=null&&x.kcal!==""?"Oppgitt":"Anslått"}</span></div>
+    <span class="lnum num">${x.min} min · ${INTS[x.int??1].toLowerCase()} · ${nf(sessKcal(x))} kcal</span>${x.note?`<p class="note">${esc(x.note)}</p>`:""}</div>
+    <div class="actions"><button class="btn sm" data-topen="i:${i}">Endre</button><button class="btn sm" data-tdel="${i}">Fjern</button></div>`;
+}
+function actSelect(id,val){return`<select class="sel" id="${id}">${Object.entries(ACTS).map(([k,a])=>`<option value="${k}" ${val===k?"selected":""}>${a.n}</option>`).join("")}</select>`}
+function intChips(name,val){return`<div class="chips">${INTS.map((n,i)=>`<label class="chip"><input type="radio" name="${name}" value="${i}" ${val===i?"checked":""}><span>${n}</span></label>`).join("")}</div>`}
+let TCTX={};
+function openProgram(id){
+  const p=id==="new"?{id:"p"+Date.now().toString(36),dows:[],act:"lop",min:45,int:1,note:""}:S.program.find(x=>x.id===id);if(!p)return;
+  TCTX={kind:"prog",isNew:id==="new",p:{...p,dows:[...p.dows]}};
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Treningsprogram</span><h2 id="sheetTitle">${id==="new"?"Ny økt i programmet":"Endre økt"}</h2></div>
+   <div class="field-s"><span class="t">Dager</span><div class="dows">${DOWS.map((n,i)=>`<label class="chip"><input type="checkbox" name="tp-dow" value="${i+1}" ${p.dows.includes(i+1)?"checked":""}><span>${n}</span></label>`).join("")}</div></div>
+   <div class="field-s"><label class="t" for="tp-act">Aktivitet</label>${actSelect("tp-act",p.act)}</div>
+   <div class="field-s"><label class="t" for="tp-min">Varighet, minutter</label><input type="number" class="txt" id="tp-min" min="5" max="600" step="5" inputmode="numeric" value="${p.min}"></div>
+   <div class="field-s"><span class="t">Intensitet</span>${intChips("tp-int",p.int)}</div>
+   <div class="field-s"><label class="t" for="tp-note">Notat</label><input type="text" class="txt" id="tp-note" maxlength="80" placeholder="F.eks. 5 × 4 min intervall" value="${esc(p.note||"")}"></div>
+   <p class="note estout" id="tp-est"></p>
+   <div class="actions">${id!=="new"?`<button class="btn" data-pdel="${p.id}">Fjern fra programmet</button>`:""}<button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="tp-save">Lagre</button></div>`;
+  $("#scrim").hidden=false;updTEst("tp");
+}
+function readT(pre){
+  return{act:$("#"+pre+"-act").value,min:Math.max(1,Math.round(+$("#"+pre+"-min").value||0)),int:+(document.querySelector(`input[name="${pre}-int"]:checked`)?.value??1),note:$("#"+pre+"-note").value.trim()};
+}
+function updTEst(pre){const x=readT(pre);if(pre==="ts"){const k=$("#ts-kcal").value;if(k!==""){$("#ts-est").textContent=`Bruker ${nf(+k)} kcal som du har oppgitt.`;return}}
+  $("#"+pre+"-est").textContent=`Anslått forbrenning: ${nf(sessKcal(x))} kcal utover hvilestoffskiftet (${weightKg()} kg${+S.me.w>0?"":", standardvekt"}).`}
+function saveProgram(){
+  const x=readT("tp");const dows=[...document.querySelectorAll('input[name="tp-dow"]:checked')].map(i=>+i.value);
+  if(!dows.length){const o=$("#tp-est");o.textContent="Velg minst én dag.";o.classList.add("err");return}
+  const p={...TCTX.p,...x,dows};
+  if(TCTX.isNew)S.program.push(p);else S.program=S.program.map(q=>q.id===p.id?p:q);
+  closeSheet();save();renderAll();toast("Programmet er oppdatert");
+}
+function openSession(key){
+  const ds=iso(addDays(S.start,logDay)),done=dayTrain(ds);
+  let base,idx=null,planId=null;
+  if(key.startsWith("p:")){planId=key.slice(2);const p=S.program.find(q=>q.id===planId);if(!p)return;base={act:p.act,min:p.min,int:p.int,note:p.note||"",kcal:""}}
+  else if(key.startsWith("i:")){idx=+key.slice(2);base={...done[idx]};planId=base.planId||null;if(base.kcal==null)base.kcal=""}
+  else base={act:"lop",min:30,int:1,note:"",kcal:""};
+  TCTX={kind:"sess",ds,idx,planId};
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Logg økt · ${fmtDay(addDays(S.start,logDay))}</span><h2 id="sheetTitle">Hva trente du?</h2></div>
+   <div class="field-s"><label class="t" for="ts-act">Aktivitet</label>${actSelect("ts-act",base.act)}</div>
+   <div class="field-s"><label class="t" for="ts-min">Varighet, minutter</label><input type="number" class="txt" id="ts-min" min="1" max="600" step="5" inputmode="numeric" value="${base.min}"></div>
+   <div class="field-s"><span class="t">Intensitet</span>${intChips("ts-int",base.int??1)}</div>
+   <div class="field-s"><label class="t" for="ts-kcal">Kalorier fra klokke eller app (valgfritt)</label><input type="number" class="txt" id="ts-kcal" min="0" inputmode="numeric" placeholder="La stå tom for anslag" value="${base.kcal}"><span class="hint">Klokker viser ofte totalt forbruk. Trekk gjerne fra hvileforbruket hvis den skiller på det.</span></div>
+   <div class="field-s"><label class="t" for="ts-note">Notat</label><input type="text" class="txt" id="ts-note" maxlength="80" value="${esc(base.note||"")}"></div>
+   <p class="note estout" id="ts-est"></p>
+   <div class="actions"><button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="ts-save">Lagre økten</button></div>`;
+  $("#scrim").hidden=false;updTEst("ts");
+}
+function saveSession(){
+  const x=readT("ts");const k=$("#ts-kcal").value;
+  const e={...x,kcal:k===""?null:Math.round(+k),t:Date.now()};if(TCTX.planId)e.planId=TCTX.planId;
+  const dl=dayLog(TCTX.ds,true);dl.train=dl.train||[];
+  if(TCTX.idx!==null)dl.train[TCTX.idx]=e;else dl.train.push(e);
+  closeSheet();saveLog(TCTX.ds);renderAll();toast("Økten er logget");
+}
+function quickTrain(planId){
+  const p=S.program.find(q=>q.id===planId);if(!p)return;const ds=iso(addDays(S.start,logDay));
+  const dl=dayLog(ds,true);dl.train=dl.train||[];dl.train.push({planId,act:p.act,min:p.min,int:p.int,note:p.note||"",kcal:null,t:Date.now()});
+  saveLog(ds);renderAll();toast("Økten er logget");
+}
+
+/* ---------- Hendelser for profil, fordeling og trening ---------- */
+function v4Change(t){
+  const id=t.id||"",nm=t.name||"";
+  if(nm==="me-sex"){S.me.sex=t.value}
+  else if(["me-age","me-h","me-w"].includes(id)){const k=id.slice(3);S.me[k]=t.value===""?"":Math.max(0,+t.value)}
+  else if(id==="me-pal"){S.me.pal=+t.value}
+  else if(id==="me-goal"){S.me.goal=+t.value}
+  else if(id==="me-auto"){S.me.auto=t.checked}
+  else if(id==="me-ex"){S.exFactor=+t.value}
+  else if(id.startsWith("sp-")){S.split[id.slice(3)]=Math.min(100,Math.max(0,Math.round(+t.value||0)))}
+  else if(nm==="tp-dow"||nm==="tp-int"||id.startsWith("tp-")){updTEst("tp");return true}
+  else if(nm==="ts-int"||id.startsWith("ts-")){updTEst("ts");return true}
+  else if(id.startsWith("sn-"))return true;
+  else return false;
+  syncKcal();save();renderAll();return true;
+}
+function v4Input(t){
+  const id=t.id||"";
+  if(id==="me-ex"){$("#o-ex").textContent=t.value+" %";return true}
+  if(id.startsWith("tp-")){updTEst("tp");return true}
+  if(id.startsWith("ts-")){updTEst("ts");return true}
+  if(id.startsWith("me-")||id.startsWith("sp-")||id.startsWith("sn-"))return true;
+  return false;
+}
+function v4Click(t){
+  const d=t.dataset;
+  if(d.popen!==undefined){openProgram(d.popen);return true}
+  if(d.pdel!==undefined){S.program=S.program.filter(p=>p.id!==d.pdel);closeSheet();save();renderAll();toast("Fjernet fra programmet");return true}
+  if(t.id==="tp-save"){saveProgram();return true}
+  if(d.topen!==undefined){openSession(d.topen);return true}
+  if(t.id==="ts-save"){saveSession();return true}
+  if(d.tdone!==undefined){quickTrain(d.tdone);return true}
+  if(d.tdel!==undefined){const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds);if(dl&&dl.train){dl.train.splice(+d.tdel,1);saveLog(ds);renderAll();toast("Økten er fjernet")}return true}
+  if(d.snadd!==undefined){S.snacks.push({id:d.snadd});save();renderAll();return true}
+  if(d.sndel!==undefined){S.snacks.splice(+d.sndel,1);save();renderAll();return true}
+  if(t.id==="sn-add"){const n=$("#sn-name").value.trim(),k=+$("#sn-kcal").value;if(!n||!(k>0)){toast("Skriv navn og kalorier");return true}S.snacks.push({n,kcal:Math.round(k)});save();renderAll();return true}
+  if(d.snlog!==undefined){logSnack(+d.snlog);return true}
+  return false;
+}
+
 /* ---------- Boot ---------- */
-ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
+syncKcal(); ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
 </script>
 
 <script>
@@ -1206,7 +1528,7 @@ ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); init
     window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(e){console.warn("Service worker:",e)})});
   }
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-  function fromHash(){var h=(location.hash||"").slice(1);if(["meny","liste","logg","oppsett"].indexOf(h)>=0){try{setTab(h)}catch(e){}}}
+  function fromHash(){var h=(location.hash||"").slice(1);if(["meny","liste","logg","trening","oppsett"].indexOf(h)>=0){try{setTab(h)}catch(e){}}}
   fromHash();window.addEventListener("hashchange",fromHash);
 })();
 </script>

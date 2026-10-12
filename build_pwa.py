@@ -87,6 +87,7 @@ MANIFEST = {
     "shortcuts": [
         {"name": "Handleliste", "url": "./#liste", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
         {"name": "Logg", "url": "./#logg", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+        {"name": "Trening", "url": "./#trening", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
     ],
 }
 
@@ -118,7 +119,7 @@ BOOT = """
     window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(e){console.warn("Service worker:",e)})});
   }
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-  function fromHash(){var h=(location.hash||"").slice(1);if(["meny","liste","logg","oppsett"].indexOf(h)>=0){try{setTab(h)}catch(e){}}}
+  function fromHash(){var h=(location.hash||"").slice(1);if(["meny","liste","logg","trening","oppsett"].indexOf(h)>=0){try{setTab(h)}catch(e){}}}
   fromHash();window.addEventListener("hashchange",fromHash);
 })();
 </script>
