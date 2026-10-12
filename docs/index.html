@@ -294,6 +294,30 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .srctag.skip{color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
 .trainline .skip{color:var(--bad);font-weight:600}
 .kos-rows small{font-size:11.5px;font-weight:600}
+.seg2{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:12px;padding:3px;gap:3px}
+.seg2 button{border:0;background:transparent;border-radius:9px;padding:8px 6px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg2 button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.wchart{position:relative}
+.wchart svg{display:block;width:100%;height:auto;overflow:visible}
+.wchart .ax{font:11px var(--f-mono);fill:var(--muted)}
+.wchart .grid{stroke:var(--line);stroke-width:1}
+.ctip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-100%);margin-top:-10px;font-variant-numeric:tabular-nums}
+.lgd{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.lgd span{display:inline-flex;align-items:center;gap:6px}
+.lgd i{display:inline-block;width:18px;height:0;border-top:2px solid var(--herb)}
+.lgd i.dash{border-top-style:dashed}
+.lgd i.tgt{border-top:1.5px dashed var(--muted)}
+.tblwrap{overflow-x:auto;margin-inline:-4px}
+.mtab{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.mtab th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 6px;white-space:nowrap}
+.mtab th:first-child,.mtab td:first-child{text-align:left}
+.mtab td{text-align:right;padding:8px 6px;border-top:1px dashed var(--line);font-family:var(--f-mono);white-space:nowrap}
+.mtab tr.sum td{border-top:2px solid var(--line);font-weight:500}
+.mtab .neg{color:var(--good)} .mtab .pos{color:var(--warn)}
+.mtab button{border:0;background:transparent;color:var(--herb);font:600 12px var(--f-body);padding:2px 4px}
+.hz{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px 10px;font-size:13px;align-items:baseline}
+.hz .h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.hz .num{text-align:right}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -546,7 +570,7 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[]};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:""},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[]};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -913,6 +937,7 @@ document.addEventListener("click",e=>{
   if(t.id==="l-est")return estimate();
   if(t.id==="l-save")return saveLogEntry();
   if(v4Click(t))return;
+  if(v10Click(t))return;
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
@@ -923,6 +948,7 @@ $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()})
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(v10Change(t))return;
   if(v4Change(t))return;
   if(t.id==="l-photo"){pickPhoto(t);return}
   if(t.name==="l-type"||t.name==="sk-r"||t.name==="sk-rep"||(t.id&&/^(l-|sk-)/.test(t.id)))return;
@@ -939,6 +965,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
+  if((t.id||"").startsWith("kb-"))return;
   if(v4Input(t))return;
   if(["l-kcal","l-p","l-f","l-k"].includes(t.id)){LOGCTX.src="manual";document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));return}
   if(t.id==="l-desc"||t.id==="sk-note")return;
@@ -1259,6 +1286,7 @@ function normalizeS(){
   S.me=Object.assign({},DEFAULTS.me,S.me);S.split=Object.assign({},DEFAULTS.split,S.split);
   if(!Array.isArray(S.snacks))S.snacks=DEFAULTS.snacks.map(x=>({...x}));
   if(!Array.isArray(S.program))S.program=[];
+  if(!Array.isArray(S.body))S.body=[];
   if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
   if(S.scalePortion==null)S.scalePortion=true;
 }
@@ -1412,12 +1440,13 @@ function logSnack(i){
 /* ---------- Trening: visning ---------- */
 function renderTrening(){
   const el=$("#v-trening");if(!el)return;
+  if(TVIEW==="kropp"){el.innerHTML=kroppHtml();bindChart();return}
   const todayIdx=(()=>{const t=iso(new Date());for(let d=0;d<S.days;d++)if(iso(addDays(S.start,d))===t)return d;return -1})();
   if(logDay===null||logDay>=S.days)logDay=todayIdx>=0?todayIdx:0;
   const date=addDays(S.start,logDay),ds=iso(date);
   const wk=weekDates(ds);let plannedN=0,doneN=0,mins=0,burn=0;
   wk.forEach(x=>{const dt=new Date(x+"T12:00:00");plannedN+=plannedFor(dt).length;const tr=dayTrain(x);doneN+=tr.filter(s=>!s.skipped).length;mins+=tr.reduce((a,s)=>a+(+s.min||0),0);burn+=tr.reduce((a,s)=>a+sessKcal(s),0)});
-  let h=`<div><h1>Trening</h1><p class="lede">Legg inn treningsprogrammet ditt og logg øktene. Forbrenningen legges til dagens kalorier og kosekvoten.</p></div>
+  let h=`<div><h1>Trening</h1><p class="lede">Legg inn treningsprogrammet ditt og logg øktene. Forbrenningen legges til dagens kalorier og kosekvoten.</p></div>${segHtml()}
   <div class="daychips" role="group" aria-label="Velg dag">${Array.from({length:S.days},(_,d)=>{const dt=addDays(S.start,d);const has=dayTrain(iso(dt)).length>0;
     return`<button class="dchip ${d===logDay?"on":""} ${d===todayIdx?"today":""}" data-logday="${d}" aria-pressed="${d===logDay}">${new Intl.DateTimeFormat("nb-NO",{weekday:"short"}).format(dt).replace(".","")}<b>${dt.getDate()}</b>${has?'<i class="dotlog" aria-label="har økt"></i>':""}</button>`}).join("")}</div>
   <div class="summary">
@@ -1566,6 +1595,199 @@ function portionPen(r,meal,d){
   return Math.max(0,Math.abs(Math.log(tgt/kcal(r)))-.15)*1.5;
 }
 const portionChoices = (r,meal,d) => [...new Set([.5,1,1.5,2,myPortion(r,meal,d)])].sort((a,b)=>a-b);
+
+/* ---------- Kropp: målinger og prognose ---------- */
+let TVIEW=(()=>{try{return localStorage.getItem("matplan:tview")||"okter"}catch(e){return"okter"}})();
+let PSCN="plan";
+const STR_ACTS=["styrke","hiit"];
+const nf1 = n => (Math.round(n*10)/10).toLocaleString("nb-NO",{minimumFractionDigits:1,maximumFractionDigits:1});
+const sgn1 = n => (n>0?"+":n<0?"−":"±")+nf1(Math.abs(n));
+function segHtml(){return`<div class="seg2" role="group" aria-label="Visning"><button class="${TVIEW!=="kropp"?"on":""}" data-tview="okter" aria-pressed="${TVIEW!=="kropp"}">Økter</button><button class="${TVIEW==="kropp"?"on":""}" data-tview="kropp" aria-pressed="${TVIEW==="kropp"}">Kropp og prognose</button></div>`}
+function bodySorted(){return[...(S.body||[])].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0)}
+function latestW(){const b=bodySorted().filter(m=>+m.w>0);return b.length?+b[b.length-1].w:(+S.me.w||0)}
+function navyBF(m){
+  const h=+S.me.h;if(!h||!(+m.waist>0)||!(+m.neck>0))return null;
+  if(S.me.sex==="m"){if(+m.waist<=+m.neck)return null;return 495/(1.0324-0.19077*Math.log10(m.waist-m.neck)+0.15456*Math.log10(h))-450}
+  if(S.me.sex==="k"){if(!(+m.hip>0))return null;return 495/(1.29579-0.35004*Math.log10(+m.waist+ +m.hip-m.neck)+0.22100*Math.log10(h))-450}
+  return null;
+}
+function bfOf(m){const v=+m.bf>0?+m.bf:navyBF(m);return v!=null&&v>2&&v<70?v:null}
+function rmrAt(w){const m=S.me;return(10*w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161))*m.pal}
+const pastDays = n => {const out=[];for(let i=1;i<=n;i++){const d=new Date();d.setDate(d.getDate()-i);out.push(iso(d))}return out};
+function scenario(kind){
+  const w=latestW();if(!meReady()||!(w>0))return null;
+  if(kind==="plan"){
+    return{kind,w,intake:S.kcal,burn:S.program.reduce((a,p)=>a+sessKcal(p)*p.dows.length,0)/7,
+      prot:S.kcal*PROFILES[S.profile].p/100/4,str:S.program.filter(p=>STR_ACTS.includes(p.act)).reduce((a,p)=>a+p.dows.length,0)};
+  }
+  const logged=pastDays(14).map(ds=>dayTotals(dayLog(ds))).filter(t=>t.n>0);
+  if(logged.length<3)return null;
+  const td=pastDays(28);
+  return{kind,w,days:logged.length,intake:logged.reduce((a,t)=>a+t.kcal,0)/logged.length,
+    burn:td.reduce((a,ds)=>a+trainBurn(ds),0)/td.length,prot:logged.reduce((a,t)=>a+t.p,0)/logged.length,
+    str:td.reduce((a,ds)=>a+dayTrain(ds).filter(x=>!x.skipped&&STR_ACTS.includes(x.act)).length,0)/4};
+}
+/* Andel av vektendringen som er fettfri masse (muskler, vann, glykogen). Grove anslag fra litteraturen. */
+function leanShare(bal,protRel,str){
+  if(bal<0){let f=.25;if(protRel>=1.6)f-=.1;else if(protRel>=1.2)f-=.05;else if(protRel<.8)f+=.05;if(str>=2)f-=.1;else if(str>=1)f-=.05;if(bal<-750)f+=.05;return Math.min(.4,Math.max(.03,f))}
+  let f=.15;if(str>=2)f+=.25;else if(str>=1)f+=.1;if(protRel>=1.6)f+=.1;else if(protRel<1.2)f-=.05;return Math.min(.55,Math.max(.05,f));
+}
+function project(sc,weeks){
+  let w=sc.w,cumL=0,cumF=0;const out=[{wk:0,w,cumL,cumF,bal:null}];
+  for(let k=1;k<=weeks;k++){
+    const maint=rmrAt(w)+sc.burn*w/sc.w,bal=sc.intake-maint,protRel=sc.prot/w;
+    let dW,dL,recomp=false;
+    if(Math.abs(bal)<150&&sc.str>=2&&protRel>=1.6){dW=bal*7/7700;dL=.025;recomp=true}
+    else{const f=leanShare(bal,protRel,sc.str);dW=bal*7/(f*1800+(1-f)*7700);dL=dW*f}
+    w+=dW;cumL+=dL;cumF+=dW-dL;out.push({wk:k,w,cumL,cumF,bal,recomp});
+  }
+  return out;
+}
+function trendKgWeek(){
+  const cut=iso(new Date(Date.now()-42*864e5));const pts=bodySorted().filter(m=>+m.w>0&&m.date>=cut).map(m=>({x:new Date(m.date+"T12:00:00")/864e5,y:+m.w}));
+  if(pts.length<2||pts[pts.length-1].x-pts[0].x<10)return null;
+  const mx=pts.reduce((a,p)=>a+p.x,0)/pts.length,my=pts.reduce((a,p)=>a+p.y,0)/pts.length;
+  const num=pts.reduce((a,p)=>a+(p.x-mx)*(p.y-my),0),den=pts.reduce((a,p)=>a+(p.x-mx)**2,0);
+  return den?num/den*7:null;
+}
+function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r)));const n=r/p;return(n<1.5?1:n<3?2:n<7?5:10)*p}
+let CHART=null;
+function weightChart(pr,startDs){
+  const meas=bodySorted().filter(m=>+m.w>0).map(m=>({t:new Date(m.date+"T12:00:00").getTime(),w:+m.w,lbl:fmtShort(new Date(m.date+"T12:00:00"))+": "+nf1(m.w)+" kg målt"}));
+  const t0=new Date(startDs+"T12:00:00").getTime();
+  const prog=pr.map(p=>({t:t0+p.wk*7*864e5,w:p.w,lbl:fmtShort(new Date(t0+p.wk*7*864e5))+": "+nf1(p.w)+" kg prognose"}));
+  const tg=+S.me.targetW>0?+S.me.targetW:null;
+  const all=[...meas,...prog];const tMin=Math.min(...all.map(p=>p.t)),tMax=Math.max(...all.map(p=>p.t));
+  let yMin=Math.min(...all.map(p=>p.w),tg??Infinity),yMax=Math.max(...all.map(p=>p.w),tg??-Infinity);
+  const step=niceStep(Math.max(1,(yMax-yMin))/4);yMin=Math.floor((yMin-step*.3)/step)*step;yMax=Math.ceil((yMax+step*.3)/step)*step;
+  const W=360,H=196,L=38,R=12,T=12,B=24;
+  const X=t=>L+(tMax>tMin?(t-tMin)/(tMax-tMin):.5)*(W-L-R),Y=w=>T+(yMax-w)/(yMax-yMin)*(H-T-B);
+  let g="";for(let v=yMin;v<=yMax+1e-9;v+=step)g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${Math.round(v*10)/10}</text>`;
+  const xl=[tMin,(tMin+tMax)/2,tMax].map((t,i)=>`<text class="ax" x="${X(t)}" y="${H-6}" text-anchor="${["start","middle","end"][i]}">${fmtShort(new Date(t))}</text>`).join("");
+  const path=a=>a.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+","+Y(p.w).toFixed(1)).join("");
+  const tl=tg?`<line x1="${L}" x2="${W-R}" y1="${Y(tg)}" y2="${Y(tg)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"/><text class="ax" x="${W-R}" y="${Y(tg)-5}" text-anchor="end">Mål ${nf1(tg)} kg</text>`:"";
+  CHART={pts:all.map(p=>({x:X(p.t),y:Y(p.w),lbl:p.lbl})).sort((a,b)=>a.x-b.x),W,H,T,B};
+  return`<div class="lgd">${meas.length?'<span><i></i>Målt vekt</span>':""}<span><i class="dash"></i>Prognose</span>${tg?'<span><i class="tgt"></i>Målvekt</span>':""}</div>
+   <div class="wchart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vekt over tid med prognose">${g}${xl}${tl}
+    <path d="${path(prog)}" fill="none" stroke="var(--herb)" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round" opacity=".85"/>
+    ${meas.length>1?`<path d="${path(meas)}" fill="none" stroke="var(--herb)" stroke-width="2" stroke-linejoin="round"/>`:""}
+    ${meas.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.w)}" r="4.5" fill="var(--herb)" stroke="var(--surface)" stroke-width="2"/>`).join("")}
+    <line id="ch-x" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-width="1" opacity="0"/>
+    <circle id="ch-dot" r="5" fill="var(--surface)" stroke="var(--herb)" stroke-width="2" opacity="0"/>
+    <rect x="${L}" y="0" width="${W-L-R}" height="${H}" fill="transparent" id="ch-hit"/></svg><div class="ctip" id="ch-tip" hidden></div></div>`;
+}
+function bindChart(){
+  const hit=$("#ch-hit");if(!hit||!CHART)return;const svg=hit.ownerSVGElement,tip=$("#ch-tip"),xl=$("#ch-x"),dot=$("#ch-dot");
+  const move=e=>{const r=svg.getBoundingClientRect(),sx=(e.clientX-r.left)/r.width*CHART.W;
+    let best=CHART.pts[0];for(const p of CHART.pts)if(Math.abs(p.x-sx)<Math.abs(best.x-sx))best=p;
+    xl.setAttribute("x1",best.x);xl.setAttribute("x2",best.x);xl.setAttribute("opacity",".6");dot.setAttribute("cx",best.x);dot.setAttribute("cy",best.y);dot.setAttribute("opacity","1");
+    tip.hidden=false;tip.textContent=best.lbl;tip.style.left=(best.x/CHART.W*100)+"%";tip.style.top=(best.y/CHART.H*r.height)+"px"};
+  const out=()=>{tip.hidden=true;xl.setAttribute("opacity","0");dot.setAttribute("opacity","0")};
+  hit.addEventListener("pointermove",move);hit.addEventListener("pointerdown",move);hit.addEventListener("pointerleave",out);
+}
+function kroppHtml(){
+  let h=`<div><h1>Kropp og fremgang</h1><p class="lede">Legg inn målinger og se hvor vekten er på vei, ut fra kaloribalanse, protein og styrketrening.</p></div>${segHtml()}`;
+  if(!meReady())return h+`<p class="note flag">Fyll inn kjønn, alder, høyde og vekt under Oppsett → Om deg for å få en prognose.</p>`+measHtml();
+  const scP=scenario("plan"),scL=scenario("logg");if(PSCN==="logg"&&!scL)PSCN="plan";
+  const sc=PSCN==="logg"?scL:scP;
+  const pr=project(sc,26),first=pr[1],protRel=sc.prot/sc.w,body=bodySorted().filter(m=>+m.w>0);
+  const startDs=body.length?body[body.length-1].date:iso(new Date());
+  const tg=+S.me.targetW>0?+S.me.targetW:null;
+  let eta="";if(tg){const dir=tg<sc.w?-1:1;const hit=pr.find(p=>p.wk>0&&(dir<0?p.w<=tg:p.w>=tg));
+    eta=hit?`Målvekt ${nf1(tg)} kg nås rundt ${fmtShort(new Date(new Date(startDs+"T12:00:00").getTime()+hit.wk*7*864e5))} (om ca. ${hit.wk} uker).`:`Målvekt ${nf1(tg)} kg nås ikke innen et halvt år med ${PSCN==="plan"?"denne planen":"dette inntaket"}.`}
+  const rate=(first.w-sc.w)/sc.w*100;
+  const tips=[];
+  if(rate<-1)tips.push("Vekttapet er raskere enn 1 % av kroppsvekten per uke. Det øker tapet av muskler. Vurder et mindre underskudd.");
+  if(first.bal<-100&&protRel<1.2)tips.push(`Proteininntaket er ${nf1(protRel)} g per kg. Rundt 1,6 g per kg hjelper deg å beholde musklene når du går ned.`);
+  if(first.bal<-100&&sc.str<2)tips.push("Styrketrening 2–3 ganger i uka gjør at mer av vekttapet blir fett og mindre muskler.");
+  if(first.bal>100&&sc.str<2)tips.push("Uten styrketrening blir mesteparten av vektøkningen fett. 2–3 styrkeøkter i uka gir mer muskler.");
+  if(first.recomp)tips.push("Med inntak nær vedlikehold, nok protein og styrketrening kan du bygge litt muskler og miste litt fett uten at vekten endrer seg mye.");
+  const tr=trendKgWeek(),predWk=first.w-sc.w;
+  const hz=[4,12,26].map(k=>pr[k]);
+  h+=`<div class="summary">
+    <div class="chips">${["plan","logg"].map(k=>`<button type="button" class="chip-btn ${PSCN===k?"on":""}" data-pscn="${k}" ${k==="logg"&&!scL?"disabled":""}>${k==="plan"?"Etter planen":"Etter loggen"}</button>`).join("")}</div>
+    <span class="note">${PSCN==="plan"?`Forutsetter at du spiser hele dagsmålet på ${nf(S.kcal)} kcal, inkludert kosekvoten, og følger treningsprogrammet.`:`Snitt av ${sc.days} loggede dager de siste 14 dagene og trening de siste 28 dagene.`}${scL?"":" «Etter loggen» krever minst 3 loggede dager de siste 14 dagene."}</span>
+    <div class="stats">
+      <div class="stat"><span class="k">Balanse/dag</span><span class="v">${first.bal>0?"+":first.bal<0?"−":""}${nf(Math.abs(first.bal))}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Protein</span><span class="v">${nf1(protRel)}<small> g/kg</small></span></div>
+      <div class="stat"><span class="k">Styrke</span><span class="v">${nf1(sc.str)}<small> /uke</small></span></div>
+    </div>
+    ${weightChart(pr,startDs)}
+    <div class="hz"><span class="h">Om</span><span class="h num">Vekt</span><span class="h num">Fett</span><span class="h num">Muskler m.m.</span>
+      ${hz.map(p=>`<span>${p.wk} uker</span><span class="num">${nf1(p.w)} kg</span><span class="num">${sgn1(p.cumF)}</span><span class="num">${sgn1(p.cumL)}</span>`).join("")}</div>
+    <span class="note">${eta?eta+" ":""}Første uke: ${sgn1(predWk)} kg.${tr!=null?` Faktisk trend fra målingene: ${sgn1(tr)} kg per uke.`:""}</span>
+    ${tips.map(t=>`<span class="note flag">${t}</span>`).join("")}
+    <span class="note">Grovt anslag: vedlikeholdsbehov fra Mifflin-St Jeor og aktivitetsnivå pluss trening, justert når vekten endres. Fordelingen mellom fett og muskler bygger på typiske funn for protein og styrketrening. Vekten svinger også med vann, salt og mageinnhold, så se på trenden over flere uker.</span>
+    <div class="field-row"><label class="t" for="kb-target">Målvekt, kg</label><input type="number" id="kb-target" inputmode="decimal" min="35" max="250" step="0.5" value="${S.me.targetW||""}"></div>
+  </div>`;
+  return h+measHtml();
+}
+function measHtml(){
+  const b=bodySorted(),hasHip=b.some(m=>+m.hip>0),hgt=+S.me.h;
+  let h=`<h2 class="section-h">Målinger</h2>`;
+  if(!b.length)return h+`<p class="note">Ingen målinger ennå. Mål vekt om morgenen før frokost, og mageomkrets i høyde med navlen.</p><button class="btn primary" data-bopen="new">${ICON.plus}Ny måling</button>`;
+  const cell=(v,d=1)=>v!=null&&v!==""&&!isNaN(v)?(d?nf1(+v):(Math.round(+v*10)/10).toLocaleString("nb-NO",{maximumFractionDigits:1})):"–";
+  const rows=[...b].reverse();
+  h+=`<div class="card" style="padding-block:6px"><div class="tblwrap"><table class="mtab"><thead><tr><th>Dato</th><th>Vekt</th><th>Mage</th><th>Nakke</th>${hasHip?"<th>Hofte</th>":""}<th>Fett %</th><th><span class="sr">Endre</span></th></tr></thead><tbody>
+    ${rows.map(m=>`<tr><td>${fmtShort(new Date(m.date+"T12:00:00"))}</td><td>${cell(m.w)}</td><td>${cell(m.waist,0)}</td><td>${cell(m.neck,0)}</td>${hasHip?`<td>${cell(m.hip,0)}</td>`:""}<td>${cell(bfOf(m))}</td><td><button data-bopen="${m.id}">Endre</button></td></tr>`).join("")}`;
+  if(b.length>1){
+    const f=b[0],l=b[b.length-1];const dd=(a,c)=>+a>0&&+c>0?+c-+a:null;
+    const cls=v=>v==null?"":v<0?"neg":v>0?"pos":"";const fmt=v=>v==null?"–":sgn1(v);
+    const bfA=bfOf(f),bfB=bfOf(l);
+    h+=`<tr class="sum"><td>Endring</td><td class="${cls(dd(f.w,l.w))}">${fmt(dd(f.w,l.w))}</td><td class="${cls(dd(f.waist,l.waist))}">${fmt(dd(f.waist,l.waist))}</td><td>${fmt(dd(f.neck,l.neck))}</td>${hasHip?`<td class="${cls(dd(f.hip,l.hip))}">${fmt(dd(f.hip,l.hip))}</td>`:""}<td class="${cls(bfA!=null&&bfB!=null?bfB-bfA:null)}">${bfA!=null&&bfB!=null?sgn1(bfB-bfA):"–"}</td><td></td></tr>`;
+  }
+  h+=`</tbody></table></div></div>`;
+  const l=b[b.length-1],bf=bfOf(l),notes=[];
+  if(b.length>1){const f=b[0],bfA=bfOf(f);
+    if(bfA!=null&&bf!=null&&+f.w>0&&+l.w>0){const fmA=f.w*bfA/100,fmB=l.w*bf/100;notes.push(`Siden ${fmtShort(new Date(f.date+"T12:00:00"))}: fettmasse ${sgn1(fmB-fmA)} kg, fettfri masse ${sgn1((l.w-fmB)-(f.w-fmA))} kg.`)}}
+  if(bf!=null&&+l.w>0)notes.push(`Siste måling: ca. ${nf1(bf)} % fett (${nf1(l.w*bf/100)} kg fett, ${nf1(l.w*(1-bf/100))} kg fettfri masse).`);
+  if(+l.waist>0&&hgt)notes.push(`Midje i forhold til høyde: ${(l.waist/hgt).toLocaleString("nb-NO",{maximumFractionDigits:2})}. Under 0,5 regnes som gunstig.`);
+  h+=notes.map(n=>`<p class="note" style="margin:0">${n}</p>`).join("");
+  h+=`<p class="note" style="margin:0">Fettprosent beregnes fra mage- og nakkeomkrets${S.me.sex==="k"?" og hofteomkrets":""} med US Navy-metoden (± 3–4 prosentpoeng), eller hentes fra vekten din hvis du fyller den inn.</p>
+    <button class="btn primary" data-bopen="new">${ICON.plus}Ny måling</button>`;
+  return h;
+}
+let BCTX=null;
+function openBody(id){
+  const m=id==="new"?{id:"m"+Date.now().toString(36),date:iso(new Date()),w:"",waist:"",neck:"",hip:"",bf:"",note:""}:S.body.find(x=>x.id===id);if(!m)return;
+  BCTX={isNew:id==="new",id:m.id};
+  const f=(id,lbl,v,step,hint)=>`<div class="field-s"><label class="t" for="${id}">${lbl}</label><input type="number" class="txt" id="${id}" inputmode="decimal" min="0" step="${step}" value="${v??""}">${hint?`<span class="hint">${hint}</span>`:""}</div>`;
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Kropp</span><h2 id="sheetTitle">${id==="new"?"Ny måling":"Endre måling"}</h2></div>
+   <div class="field-s"><label class="t" for="kb-date">Dato</label><input type="date" class="txt" id="kb-date" value="${m.date}"></div>
+   ${f("kb-w","Vekt, kg",m.w,"0.1","Helst om morgenen, før frokost.")}
+   ${f("kb-waist","Mageomkrets, cm",m.waist,"0.5","I høyde med navlen, etter en rolig utpust.")}
+   ${f("kb-neck","Nakkeomkrets, cm",m.neck,"0.5","Rett under adamseplet.")}
+   ${f("kb-hip","Hofteomkrets, cm",m.hip,"0.5",S.me.sex==="k"?"Der setet er bredest. Trengs for fettprosent.":"Valgfritt.")}
+   ${f("kb-bf","Fettprosent fra vekt eller måler (valgfritt)",m.bf,"0.1","Brukes i stedet for beregnet fettprosent.")}
+   <div class="field-s"><label class="t" for="kb-note">Notat</label><input type="text" class="txt" id="kb-note" maxlength="80" value="${esc(m.note||"")}"></div>
+   <p class="note estout" id="kb-err"></p>
+   <div class="actions">${id!=="new"?`<button class="btn" data-bdel="${m.id}">Slett</button>`:""}<button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="kb-save">Lagre</button></div>`;
+  $("#scrim").hidden=false;
+}
+function saveBody(){
+  const v=id=>{const x=$("#"+id).value;return x===""?"":Math.round(+x*10)/10};
+  const m={id:BCTX.id,date:$("#kb-date").value,w:v("kb-w"),waist:v("kb-waist"),neck:v("kb-neck"),hip:v("kb-hip"),bf:v("kb-bf"),note:$("#kb-note").value.trim()};
+  const err=$("#kb-err");
+  if(!m.date){err.textContent="Velg dato.";err.classList.add("err");return}
+  if(![m.w,m.waist,m.neck,m.hip,m.bf].some(x=>x!==""&&x>0)){err.textContent="Fyll inn minst én måling.";err.classList.add("err");return}
+  if(BCTX.isNew)S.body.push(m);else S.body=S.body.map(x=>x.id===m.id?m:x);
+  const b=bodySorted().filter(x=>+x.w>0);let msg="Målingen er lagret";
+  if(b.length&&b[b.length-1].id===m.id&&+m.w>0&&+m.w!==+S.me.w){S.me.w=+m.w;syncKcal();msg+=". Vekten under Om deg er oppdatert"}
+  closeSheet();save();renderAll();toast(msg);
+}
+function v10Click(t){
+  const d=t.dataset;
+  if(d.tview!==undefined){TVIEW=d.tview;try{localStorage.setItem("matplan:tview",TVIEW)}catch(e){}renderTrening();return true}
+  if(d.pscn!==undefined){PSCN=d.pscn;renderTrening();return true}
+  if(d.bopen!==undefined){openBody(d.bopen);return true}
+  if(t.id==="kb-save"){saveBody();return true}
+  if(d.bdel!==undefined){S.body=S.body.filter(x=>x.id!==d.bdel);closeSheet();save();renderAll();toast("Målingen er slettet");return true}
+  return false;
+}
+function v10Change(t){
+  if(t.id==="kb-target"){S.me.targetW=t.value===""?"":Math.round(+t.value*10)/10;save();renderTrening();return true}
+  return (t.id||"").startsWith("kb-");
+}
 
 /* ---------- Boot ---------- */
 syncKcal(); ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();

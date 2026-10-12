@@ -15,6 +15,8 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 - **Fordeling og kosekvote:** andel av dagens kalorier til frokost, lunsj, middag og faste mellommåltider; resten er kosekvote som overføres dag for dag og nullstilles mandag
 - **Trening:** ukentlig treningsprogram og logg av økter med anslått forbrenning (MET-verdier), som øker dagens mål og kosekvote
 
+- **Kropp og prognose:** målinger av vekt, mage-, nakke- og hofteomkrets med fettprosent (US Navy) og sammenlikning over tid; vektprognose fra kaloribalanse med fordeling på fett og muskler ut fra protein og styrketrening
+
 Publisert som artefakt bruker appen tre tilganger: lagring på Claude-kontoen (synk mellom enheter), hvem som ser siden (for privat lagring per person) og Claude for næringsanslag. Åpnet som lokal fil lagres alt i nettleseren, og anslag gjøres grovt fra standardporsjoner.
 
 ## Installere på mobilen (Android)
