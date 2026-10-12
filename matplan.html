@@ -274,6 +274,9 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .prog b{font-weight:600}
 .dows{display:flex;gap:6px;flex-wrap:wrap}
 .dows .chip span{min-width:42px;text-align:center;padding:8px 10px}
+.srctag.skip{color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.trainline .skip{color:var(--bad);font-weight:600}
+.kos-rows small{font-size:11.5px;font-weight:600}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -480,7 +483,7 @@ const store = {
   set(k,v){try{localStorage.setItem("matplan:"+k,JSON.stringify(v))}catch(e){}}
 };
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function nextMonday(){const d=new Date();const add=((8-d.getDay())%7)||7;d.setDate(d.getDate()+add);return iso(d)}
+function nextMonday(){const d=new Date();const add=(8-d.getDay())%7;d.setDate(d.getDate()+add);return iso(d)}
 function iso(d){const z=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())}
 function addDays(s,n){const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return d}
 function isoWeek(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);const y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y)/864e5+1)/7)}
@@ -1032,7 +1035,7 @@ function renderLogg(){
   <div class="summary">
     <div class="stats">
       <div class="stat"><span class="k">Spist</span><span class="v">${nf(tot.kcal)}<small> kcal</small></span></div>
-      <div class="stat"><span class="k">Mål${trainDelta(ds)?" (trening)":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Mål${trainDelta(ds)<0?" − droppet økt":trainDelta(ds)>0?" + ekstra trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
       <div class="stat"><span class="k">Planlagt igjen</span><span class="v">${nf(remaining)}<small> kcal</small></span></div>
     </div>
     <div class="meter">
@@ -1316,7 +1319,7 @@ const INTS = ["Lett","Moderat","Hard"];
 const DOWS = ["Man","Tir","Ons","Tor","Fre","Lør","Søn"];
 const dowOf = d => ((d.getDay()+6)%7)+1;
 const weightKg = () => +S.me.w>0?+S.me.w:75;
-function sessKcal(x){if(x.kcal!=null&&x.kcal!=="")return Math.round(+x.kcal);const a=ACTS[x.act]||ACTS.annet;return Math.round((a.met[x.int??1]-1)*weightKg()*(+x.min||0)/60)}
+function sessKcal(x){if(x.skipped)return 0;if(x.kcal!=null&&x.kcal!=="")return Math.round(+x.kcal);const a=ACTS[x.act]||ACTS.annet;return Math.round((a.met[x.int??1]-1)*weightKg()*(+x.min||0)/60)}
 const sessName = x => (ACTS[x.act]||ACTS.annet).n;
 const plannedFor = date => S.program.filter(p=>p.dows.includes(dowOf(date)));
 const dayTrain = ds => {const dl=dayLog(ds);return(dl&&dl.train)||[]};
@@ -1340,7 +1343,7 @@ function trainBonus(ds){
 function trainLine(date){
   const ds=iso(date),pl=plannedFor(date),done=dayTrain(ds);
   if(!pl.length&&!done.length)return"";
-  const parts=pl.map(p=>{const d=done.find(x=>x.planId===p.id);return`<span class="${d?"done":""}">${ICON.run}${esc(sessName(p))} ${p.min} min${d?" · gjennomført":""}</span>`});
+  const parts=pl.map(p=>{const d=done.find(x=>x.planId===p.id);return`<span class="${d?(d.skipped?"skip":"done"):""}">${ICON.run}${esc(sessName(p))} ${p.min} min${d?(d.skipped?" · hoppet over":" · gjennomført"):""}</span>`});
   done.filter(x=>!x.planId).forEach(x=>parts.push(`<span class="done">${ICON.run}${esc(sessName(x))} ${x.min} min · gjennomført</span>`));
   return`<div class="trainline">${parts.join("")}</div>`;
 }
@@ -1349,28 +1352,29 @@ function trainLine(date){
 function weekDates(ds){const d=new Date(ds+"T12:00:00");const off=dowOf(d)-1;return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()-off+i);return iso(x)})}
 function kosDay(ds,future){
   const share=kosShare()/100,baseEarned=S.kcal*share,base=S.kcal*(1-share);
-  const delta=future?0:trainDelta(ds);
+  const delta=future&&!dayTrain(ds).length?0:trainDelta(ds);
   const dl=dayLog(ds),t=dayTotals(dl);
   const kosE=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
   const used=t.n?kosE+Math.max(0,(t.kcal-kosE)-base):0;
-  return{earned:baseEarned+delta,baseEarned,delta,pending:future?0:pendingTrain(ds),used,kosE,base,logged:t.n>0};
+  return{earned:baseEarned+delta,barEarn:baseEarned+Math.max(0,delta),barUse:used+Math.max(0,-delta),baseEarned,delta,pending:future?0:pendingTrain(ds),used,kosE,base,logged:t.n>0};
 }
 function kosStatus(ds){
-  const wk=weekDates(ds),today=iso(new Date());let carry=0,cur=null,future=0;const days=[];
+  const wk=weekDates(ds),today=iso(new Date());let missed=0,carry=0,cur=null,future=0;const days=[];
   for(const x of wk){const isFut=x>today;const k=kosDay(x,isFut);days.push({ds:x,...k,fut:isFut});
-    if(x<ds)carry+=k.earned-k.used;else if(x===ds)cur=k;else future+=k.earned;}
+    if(x<ds){carry+=k.earned-k.used;missed+=Math.max(0,-k.delta)}else if(x===ds)cur=k;else future+=k.earned;}
   const avail=carry+cur.earned-cur.used;
-  return{carry,cur,avail,future,days,weekLeft:avail+future};
+  return{carry,missed,cur,avail,future,days,weekLeft:avail+future};
 }
 function kosCard(ds){
   if(kosShare()<=0)return`<div class="lcard"><div class="lhead"><span class="mtype">Kosekvote</span></div><p class="note" style="margin:0">Fordelingen bruker hele dagsbehovet, så det er ingen kosekvote. Juster den under Oppsett.</p></div>`;
-  const k=kosStatus(ds),mx=Math.max(1,...k.days.map(d=>Math.max(d.earned,d.used)));
+  const k=kosStatus(ds),mx=Math.max(1,...k.days.map(d=>Math.max(d.barEarn,d.barUse)));
   return`<div class="lcard kos"><div class="lhead"><span class="mtype">Kosekvote</span><span class="plan">Uke ${isoWeek(new Date(ds+"T12:00:00"))} · nullstilles mandag</span></div>
     <div class="kos-top"><div class="kos-big ${k.avail<0?"neg":""}">${nf(k.avail)}<small> kcal igjen i dag</small></div><span class="note">Resten av uka kan du tjene ${nf(k.future)} kcal til.</span></div>
-    <div class="kos-rows"><span>Overført fra tidligere i uka</span><span>${nf(k.carry)}</span><span>Opptjent i dag</span><span>+${nf(k.cur.baseEarned)}</span>${k.cur.delta?`<span>${k.cur.delta>0?"Trening utover programmet":"Planlagt trening ikke gjennomført"}</span><span>${k.cur.delta>0?"+":"−"}${nf(Math.abs(k.cur.delta))}</span>`:""}<span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
-    ${k.cur.pending?`<p class="note flag" style="margin:0">Dagens planlagte trening er ikke logget ennå. Blir den ikke gjennomført, trekkes ${nf(k.cur.pending)} kcal fra kvoten.</p>`:""}
-    <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${Math.max(0,d.earned)/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
-    <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt</span></div>
+    <div class="kos-rows"><span>Overført fra tidligere i uka${k.missed?`<br><small class="flag">herav −${nf(k.missed)} for droppet trening</small>`:""}</span><span>${nf(k.carry)}</span><span>Opptjent i dag</span><span>+${nf(k.cur.baseEarned)}</span>${k.cur.delta?`<span>${k.cur.delta>0?"Trening utover programmet":"Planlagt trening ikke gjennomført"}</span><span>${k.cur.delta>0?"+":"−"}${nf(Math.abs(k.cur.delta))}</span>`:""}<span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
+    ${k.cur.pending?`<p class="note flag" style="margin:0">Dagens planlagte trening er ikke logget ennå. Hopper du over den, trekkes ${nf(k.cur.pending)} kcal fra kvoten. Er den ikke logget når dagen er over, regnes den som droppet.</p>
+    <div class="actions">${plannedFor(new Date(ds+"T12:00:00")).filter(p=>!dayTrain(ds).some(x=>x.planId===p.id)).map(p=>`<button class="btn sm" data-tdone="${p.id}">${ICON.tick}${esc(sessName(p))} gjennomført</button><button class="btn sm" data-tskip="${p.id}">Hoppet over</button>`).join("")}</div>`:""}
+    <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.barEarn/mx*100}%"></span><span class="use" style="height:${d.barUse/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
+    <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt eller trukket for droppet trening</span></div>
     <div class="actions"><button class="btn sm primary" data-logedit="x:kos">${ICON.plus}Før opp kos</button></div>
     <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag), trekkes også det fra.${trainInEnergy()?" Treningsprogrammet er fordelt jevnt over uka. Dropper du en planlagt økt, trekkes den fra kvoten. Trener du mer enn planlagt, legges det til.":" Gjennomførte økter legges til kvoten."} Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
 }
@@ -1394,7 +1398,7 @@ function renderTrening(){
   if(logDay===null||logDay>=S.days)logDay=todayIdx>=0?todayIdx:0;
   const date=addDays(S.start,logDay),ds=iso(date);
   const wk=weekDates(ds);let plannedN=0,doneN=0,mins=0,burn=0;
-  wk.forEach(x=>{const dt=new Date(x+"T12:00:00");plannedN+=plannedFor(dt).length;const tr=dayTrain(x);doneN+=tr.length;mins+=tr.reduce((a,s)=>a+(+s.min||0),0);burn+=tr.reduce((a,s)=>a+sessKcal(s),0)});
+  wk.forEach(x=>{const dt=new Date(x+"T12:00:00");plannedN+=plannedFor(dt).length;const tr=dayTrain(x);doneN+=tr.filter(s=>!s.skipped).length;mins+=tr.reduce((a,s)=>a+(+s.min||0),0);burn+=tr.reduce((a,s)=>a+sessKcal(s),0)});
   let h=`<div><h1>Trening</h1><p class="lede">Legg inn treningsprogrammet ditt og logg øktene. Forbrenningen legges til dagens kalorier og kosekvoten.</p></div>
   <div class="daychips" role="group" aria-label="Velg dag">${Array.from({length:S.days},(_,d)=>{const dt=addDays(S.start,d);const has=dayTrain(iso(dt)).length>0;
     return`<button class="dchip ${d===logDay?"on":""} ${d===todayIdx?"today":""}" data-logday="${d}" aria-pressed="${d===logDay}">${new Intl.DateTimeFormat("nb-NO",{weekday:"short"}).format(dt).replace(".","")}<b>${dt.getDate()}</b>${has?'<i class="dotlog" aria-label="har økt"></i>':""}</button>`}).join("")}</div>
@@ -1411,7 +1415,7 @@ function renderTrening(){
   pl.forEach(p=>{const d=done.findIndex(x=>x.planId===p.id);
     h+=`<div class="lcard"><div class="lhead"><span class="mtype">Planlagt</span><span class="plan">${esc(sessName(p))} · ${p.min} min · ${INTS[p.int].toLowerCase()}</span></div>`;
     if(d>=0)h+=sessHtml(done[d],d);
-    else h+=`<div class="actions"><button class="btn sm primary" data-tdone="${p.id}">${ICON.tick}Gjennomført · ≈ ${nf(sessKcal(p))} kcal</button><button class="btn sm" data-topen="p:${p.id}">Endre og logg</button></div>`;
+    else h+=`<div class="actions"><button class="btn sm primary" data-tdone="${p.id}">${ICON.tick}Gjennomført · ≈ ${nf(sessKcal(p))} kcal</button><button class="btn sm" data-topen="p:${p.id}">Endre og logg</button><button class="btn sm" data-tskip="${p.id}">Hoppet over</button></div>`;
     h+=`</div>`});
   done.forEach((x,i)=>{if(x.planId&&pl.some(p=>p.id===x.planId))return;h+=`<div class="lcard"><div class="lhead"><span class="mtype">Økt</span></div>${sessHtml(x,i)}</div>`});
   if(!pl.length&&!done.length)h+=`<p class="note">Ingen økter planlagt denne dagen.</p>`;
@@ -1421,6 +1425,7 @@ function renderTrening(){
   el.innerHTML=h;
 }
 function sessHtml(x,i){
+  if(x.skipped){const ds=iso(addDays(S.start,logDay));return`<div class="lentry"><div><b>${esc(sessName(x))}</b><span class="srctag skip">Hoppet over</span></div><span class="lnum">${trainInEnergy()?`−${nf(plannedBonus(ds))} kcal fra kosekvoten`:"Ingen endring i kosekvoten"}</span></div><div class="actions"><button class="btn sm" data-tdel="${i}">Angre</button></div>`}
   return`<div class="lentry"><div><b>${esc(sessName(x))}</b><span class="srctag">${x.kcal!=null&&x.kcal!==""?"Oppgitt":"Anslått"}</span></div>
     <span class="lnum num">${x.min} min · ${INTS[x.int??1].toLowerCase()} · ${nf(sessKcal(x))} kcal</span>${x.note?`<p class="note">${esc(x.note)}</p>`:""}</div>
     <div class="actions"><button class="btn sm" data-topen="i:${i}">Endre</button><button class="btn sm" data-tdel="${i}">Fjern</button></div>`;
@@ -1517,6 +1522,9 @@ function v4Click(t){
   if(d.topen!==undefined){openSession(d.topen);return true}
   if(t.id==="ts-save"){saveSession();return true}
   if(d.tdone!==undefined){quickTrain(d.tdone);return true}
+  if(d.tskip!==undefined){const p=S.program.find(q=>q.id===d.tskip);if(!p)return true;const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds,true);dl.train=dl.train||[];
+    dl.train.push({planId:p.id,act:p.act,min:0,int:p.int,skipped:true,kcal:null,t:Date.now()});saveLog(ds);renderAll();
+    toast(trainInEnergy()?`Hoppet over. ${nf(plannedBonus(ds))} kcal er trukket fra kosekvoten.`:"Registrert som hoppet over");return true}
   if(d.tdel!==undefined){const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds);if(dl&&dl.train){dl.train.splice(+d.tdel,1);saveLog(ds);renderAll();toast("Økten er fjernet")}return true}
   if(d.snadd!==undefined){S.snacks.push({id:d.snadd});save();renderAll();return true}
   if(d.sndel!==undefined){S.snacks.splice(+d.sndel,1);save();renderAll();return true}
