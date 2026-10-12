@@ -589,7 +589,7 @@ function walk(slots,upto,inv,onSlot){
   let day=-1;
   for(let j=0;j<upto;j++){const s=slots[j];
     if(s.d!==day){for(let d=day+1;d<=s.d;d++){expire(inv,d);applySnacks(inv,d)}day=s.d}
-    if(s.id){const r=RBY[s.id],tp=totalPortions(r,s.meal);onSlot&&onSlot(j,quote(inv,r,s.d,tp));apply(inv,r,s.d,tp)}}
+    if(s.id){const r=RBY[s.id],tp=totalPortions(r,s.meal,s.d);onSlot&&onSlot(j,quote(inv,r,s.d,tp));apply(inv,r,s.d,tp)}}
   return day;
 }
 function invBefore(slots,idx){const inv=newInv();const day=walk(slots,idx,inv);for(let d=day+1;d<=slots[idx].d;d++){expire(inv,d);applySnacks(inv,d)}return inv}
@@ -606,13 +606,13 @@ function simulate(slots){
 }
 
 function score(r,meal,used,prevPr,inv,day){
-  const prof=PROFILES[S.profile],sb=slotBudget(meal),tp=totalPortions(r,meal),full=costPer(r)*tp;
+  const prof=PROFILES[S.profile],sb=slotBudget(meal),tp=totalPortions(r,meal,day),full=costPer(r)*tp;
   let c=full,bonus=0;
   if(S.smartRest&&inv){const q=quote(inv,r,day,tp);c=q.marg*.6+full*.4;bonus=q.restVal/sb*1.5-q.newLeft/sb*2}
   const costPen=Math.max(0,c-sb)/sb*2+c/sb*.3;
   const rep=(used[r.id]||0)*(meal==="middag"?1.6:.5);
   const same=(meal==="middag"&&prevPr&&prevPr===r.pr)?(bonus>0?.3:.7):0;
-  return macroDist(r,prof)*3+costPen+rep+same-bonus+portionPen(r,meal);
+  return macroDist(r,prof)*3+costPen+rep+same-bonus+portionPen(r,meal,day);
 }
 function generate(seed){
   const rand=rng(seed);const used={};const slots=[];let prevPr=null;const inv=newInv();
@@ -627,7 +627,7 @@ function generate(seed){
       const top=ranked.slice(0,3);const w=[.55,.3,.15].slice(0,top.length);const sum=w.reduce((a,b)=>a+b,0);
       let x=rand()*sum,pick=top[0].r;for(let i=0;i<top.length;i++){x-=w[i];if(x<=0){pick=top[i].r;break}}
       used[pick.id]=(used[pick.id]||0)+1;if(meal==="middag")prevPr=pick.pr;
-      apply(inv,pick,d,totalPortions(pick,meal));
+      apply(inv,pick,d,totalPortions(pick,meal,d));
       slots.push({d,meal,id:pick.id,relaxed});
     }
   }
@@ -705,11 +705,11 @@ function renderMeny(){
   const filled=P.slots.filter(s=>s.id);
   const cost=SIM.cost;
   const perPD=cost/S.persons/S.days;
-  let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id],q=myPortion(r,s.meal);E+=kcal(r)*q;pP+=r.mac[0]*4*q;pF+=r.mac[1]*9*q;pK+=r.mac[2]*4*q});
+  let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id],q=myPortion(r,s.meal,s.d);E+=kcal(r)*q;pP+=r.mac[0]*4*q;pF+=r.mac[1]*9*q;pK+=r.mac[2]*4*q});
   const kcalDay=E/S.days; const mp={p:pP/E*100||0,f:pF/E*100||0,k:pK/E*100||0};
   const prof=PROFILES[S.profile];
   const share=MEALS.filter(m=>S.meals[m]).reduce((a,m)=>a+(+S.split[m]||0)/100,0);
-  const expected=S.kcal*share;
+  const expected=avgPlanKcal()*share;
   const over=cost>S.budget; const pct=Math.min(100,cost/S.budget*100);
   const dist=(Math.abs(mp.p-prof.p)+Math.abs(mp.f-prof.f)+Math.abs(mp.k-prof.k));
   const nutStatus=dist<12?["ok","Treffer ernæringsprofilen"]:dist<24?["warn","Nær ernæringsprofilen"]:["over","Avviker fra ernæringsprofilen"];
@@ -743,7 +743,7 @@ function renderMeny(){
       <div class="track" role="img" aria-label="Protein ${Math.round(mp.p)}, fett ${Math.round(mp.f)}, karbohydrat ${Math.round(mp.k)} prosent"><div class="seg c-p" style="width:${mp.p}%"></div><div class="seg c-f" style="width:${mp.f}%"></div><div class="seg c-k" style="width:${mp.k}%"></div></div>
       <div class="legend"><span><i class="dot c-p"></i>Protein ${Math.round(mp.p)} %</span><span><i class="dot c-f"></i>Fett ${Math.round(mp.f)} %</span><span><i class="dot c-k"></i>Karbo ${Math.round(mp.k)} %</span></div>
       <span class="status ${nutStatus[0]}">${nutStatus[1]}</span>
-      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per dag for deg. Med ${S.kcal} kcal i dagsbehov bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
+      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per dag for deg. Med ${nf(avgPlanKcal())} kcal i snitt per dag${trainInEnergy()?" (mer på treningsdager)":""} bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
     </div>
     ${relaxed||missing?`<span class="note flag">${missing?missing+" måltid mangler oppskrift som passer kostholdet. ":""}${relaxed?relaxed+" måltid tar lengre tid enn tidsgrensen.":""}</span>`:""}
     ${skipped?`<span class="note">${skipped} ${skipped===1?"måltid er":"måltider er"} tatt ut av menyen og handlelisten. Endre det under Oppsett eller ved å trykke på måltidet.</span>`:""}
@@ -752,7 +752,7 @@ function renderMeny(){
   for(let d=0;d<S.days;d++){
     const date=addDays(S.start,d); const wk=date.getDay()===0||date.getDay()===6;
     const slots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===d);
-    const dayCost=slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*totalPortions(RBY[s.id],s.meal):0),0);
+    const dayCost=slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*totalPortions(RBY[s.id],s.meal,s.d):0),0);
     h+=`<div class="day"><div class="day-head"><h3>${cap(fmtDay(date))}</h3><span class="meta num">${wk?"Helg · ":""}${kr(dayCost)}</span></div>${trainLine(date)}<div class="meals">`;
     slots.forEach(s=>{
       if(s.skip){const sk=skips[slotKey(s)]||{r:"annet"};
@@ -762,7 +762,7 @@ function renderMeny(){
       const r=RBY[s.id]; const info=SIM.info[s.idx];
       const rest=info&&info.rest.length?`<span class="rest">${ICON.leaf}Bruker rest: ${info.rest.map(id=>short(ING[id])).join(", ")}</span>`:"";
       h+=`<div class="meal"><button class="meal-main" data-open="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">${esc(r.n)}</span>
-        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*totalPortions(r,s.meal))}</span><span class="num">${S.scalePortion?`Din porsjon ${portionLabel(myPortion(r,s.meal))} · ${nf(kcal(r)*myPortion(r,s.meal))} kcal`:nf(kcal(r))+" kcal"}</span><span class="num">${r.mac[0]} g protein</span></span>${rest}${loggedTag(s)}</button>
+        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*totalPortions(r,s.meal,s.d))}</span><span class="num">${S.scalePortion?`Din porsjon ${portionLabel(myPortion(r,s.meal,s.d))} · ${nf(kcal(r)*myPortion(r,s.meal,s.d))} kcal`:nf(kcal(r))+" kcal"}</span><span class="num">${r.mac[0]} g protein</span></span>${rest}${loggedTag(s)}</button>
         <button class="swap" data-swap="${s.idx}" aria-label="Bytt ${esc(r.n)}" title="Bytt rett">${ICON.swap}</button></div>`;
     });
     h+=`</div></div>`;
@@ -849,11 +849,11 @@ function openRecipe(idx){
   const m=macroPct(r); const info=SIM.info[idx]||{rest:[]};
   $("#sheet").innerHTML=`<span class="grab"></span>
    <div><span class="mtype">${MEAL_LABEL[s.meal]} · ${fmtDay(date)}</span><h2 id="sheetTitle">${esc(r.n)}</h2></div>
-   <div class="facts"><div class="fact"><b>${r.t}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*totalPortions(r,s.meal))}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r)*myPortion(r,s.meal))}</b><span>kcal for deg</span></div><div class="fact"><b>${nf(r.mac[0]*myPortion(r,s.meal))} g</b><span>protein for deg</span></div></div>
+   <div class="facts"><div class="fact"><b>${r.t}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*totalPortions(r,s.meal,s.d))}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r)*myPortion(r,s.meal,s.d))}</b><span>kcal for deg</span></div><div class="fact"><b>${nf(r.mac[0]*myPortion(r,s.meal,s.d))} g</b><span>protein for deg</span></div></div>
    <div class="meter"><div class="track"><div class="seg c-p" style="width:${m.p}%"></div><div class="seg c-f" style="width:${m.f}%"></div><div class="seg c-k" style="width:${m.k}%"></div></div>
    <div class="legend"><span><i class="dot c-p"></i>Protein ${r.mac[0]} g</span><span><i class="dot c-f"></i>Fett ${r.mac[1]} g</span><span><i class="dot c-k"></i>Karbo ${r.mac[2]} g</span></div></div>
-   <h3>Ingredienser · ${portionLabel(totalPortions(r,s.meal))} porsjoner</h3>${S.scalePortion?`<p class="note" style="margin:-6px 0 0">Din porsjon er ${portionLabel(myPortion(r,s.meal))} (${nf(kcal(r)*myPortion(r,s.meal))} kcal, ${S.split[s.meal]} % av dagsbehovet)${S.persons>1?`, pluss ${S.persons-1} standardporsjon${S.persons>2?"er":""} til resten av husstanden`:""}.</p>`:""}
-   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*totalPortions(r,s.meal))}</span></li>`}).join("")}</ul>
+   <h3>Ingredienser · ${portionLabel(totalPortions(r,s.meal,s.d))} porsjoner</h3>${S.scalePortion?`<p class="note" style="margin:-6px 0 0">Din porsjon er ${portionLabel(myPortion(r,s.meal,s.d))} (${nf(kcal(r)*myPortion(r,s.meal,s.d))} kcal, ${S.split[s.meal]} % av dagsbehovet)${S.persons>1?`, pluss ${S.persons-1} standardporsjon${S.persons>2?"er":""} til resten av husstanden`:""}.</p>`:""}
+   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*totalPortions(r,s.meal,s.d))}</span></li>`}).join("")}</ul>
    <h3>Slik gjør du</h3>
    <ol class="steps">${r.s.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
    <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
@@ -1039,7 +1039,7 @@ function renderLogg(){
   const dl=dayLog(ds), tot=dayTotals(dl), prof=PROFILES[S.profile];
   const goalK=logBase()+trainBonus(ds);const tg={p:goalK*prof.p/100/4,f:goalK*prof.f/100/9,k:goalK*prof.k/100/4};
   const daySlots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===logDay);
-  const remaining=daySlots.filter(s=>s.id&&!(dl&&dl.slots[s.meal])).reduce((a,s)=>a+kcal(RBY[s.id]),0);
+  const remaining=daySlots.filter(s=>s.id&&!(dl&&dl.slots[s.meal])).reduce((a,s)=>a+kcal(RBY[s.id])*myPortion(RBY[s.id],s.meal,s.d),0);
   let loggedDays=0,sumK=0;
   for(let d=0;d<S.days;d++){const t=dayTotals(dayLog(iso(addDays(S.start,d))));if(t.n){loggedDays++;sumK+=t.kcal}}
   const goal=goalK;const pct=Math.min(100,tot.kcal/goal*100), over=tot.kcal>goal*1.1;
@@ -1078,7 +1078,7 @@ function renderLogg(){
 }
 function quickLog(idx){
   const s=P.slots[idx];if(!s||!s.id)return;const ds=iso(addDays(S.start,s.d));
-  dayLog(ds,true).slots[s.meal]=entryFromRecipe(RBY[s.id],myPortion(RBY[s.id],s.meal));saveLog(ds);renderLogg();renderMeny();toast("Lagt i loggen");
+  dayLog(ds,true).slots[s.meal]=entryFromRecipe(RBY[s.id],myPortion(RBY[s.id],s.meal,s.d));saveLog(ds);renderLogg();renderMeny();toast("Lagt i loggen");
 }
 function deleteLog(key){
   const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds);if(!dl)return;
@@ -1098,7 +1098,7 @@ function openLog(key){
   $("#sheet").innerHTML=`<span class="grab"></span>
    <div><span class="mtype">${esc(title)} · ${fmtDay(date)}</span><h2 id="sheetTitle">Hva spiste du?</h2></div>
    ${isExtra?`<div class="field-s"><span class="t">Type</span><div class="chips">${LOG_TYPES.map((t,i)=>`<label class="chip"><input type="radio" name="l-type" value="${t}" ${(ex?ex.type===t:(key==="x:kos"?t==="Kos":i===0))?"checked":""}><span>${t}</span></label>`).join("")}</div></div>`:""}
-   ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${portionChoices(recipe,key).map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon${S.scalePortion&&p===myPortion(recipe,key)?" · din":""}</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
+   ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${portionChoices(recipe,key,logDay).map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon${S.scalePortion&&p===myPortion(recipe,key,logDay)?" · din":""}</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
    <div class="field-s"><label class="t" for="l-desc">Beskrivelse</label><textarea id="l-desc" class="txt" rows="2" placeholder="F.eks. biff med pommes frites og bearnaise, ett glass rødvin">${esc(ex&&ex.src!=="plan"?(ex.desc||ex.name||""):"")}</textarea></div>
    <div class="photo-row" id="photoRow" ${SAMPLE&&SAMPLE_IMG?"":"hidden"}><label class="btn" for="l-photo">${ICON.camera}Ta eller velg bilde</label><input type="file" id="l-photo" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" class="sr"><img id="l-prev" alt="Bilde av måltidet" hidden></div>
    <div class="actions"><button class="btn" id="l-est">${ICON.spark}Anslå næringsinnhold</button></div>
@@ -1297,9 +1297,9 @@ function meCard(){
       <div class="field-row"><label class="t" for="me-w">Vekt, kg</label><input type="number" id="me-w" inputmode="decimal" min="35" max="250" step="0.1" value="${m.w}"></div></div>
     <div class="field"><label class="t" for="me-pal">Hverdagsaktivitet</label><select class="sel" id="me-pal">${PAL.map(([v,n,d])=>`<option value="${v}" ${+m.pal===v?"selected":""}>${n} – ${d}</option>`).join("")}</select><span class="hint">Uten trening. Treningsøktene legges til for seg.</span></div>
     <div class="field"><label class="t" for="me-goal">Mål</label><select class="sel" id="me-goal">${GOALS.map(([v,n,d])=>`<option value="${v}" ${+m.goal===v?"selected":""}>${n}${d?" – "+d:""}</option>`).join("")}</select>
-      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Treningsprogram i snitt <b>+${nf(e.train)} kcal</b></span><span>Brukt i menyen <b>${nf(e.target)} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
+      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Menyen på treningsdager <b>${[...new Set(S.program.flatMap(p=>p.dows))].length?nf(Math.max(...Array.from({length:S.days},(_,d)=>planKcal(d)))):"–"} kcal</b></span><span>Snitt for perioden <b>${nf(avgPlanKcal())} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
       <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label><label class="chip"><input type="checkbox" id="me-train" ${m.inclTrain?"checked":""}><span>Ta med treningsprogrammet i menyen</span></label></div>
-      <span class="hint">${m.inclTrain?(S.program.length?`Snittet av ukeprogrammet (${nf(progAvg()*7)} kcal i uka) brukes bare til å planlegge menyen og porsjonene. I loggen starter hver dag på ${nf(e.base)} kcal, og du får treningskaloriene først når du har logget økten.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Menyen planlegges uten trening. I loggen gir hver gjennomført økt ekstra kalorier den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
+      <span class="hint">${m.inclTrain?(S.program.length?`Menyen planlegger større porsjoner på dager med planlagt trening (${S.exFactor} % av anslått forbrenning). I loggen starter hver dag på ${nf(e.base)} kcal, og du får treningskaloriene først når du har logget økten. Hopper du over en økt, går det ekstra du spiser av kosekvoten.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Menyen planlegges uten trening. I loggen gir hver gjennomført økt ekstra kalorier den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
     <div class="field"><div class="field-row"><label class="t" for="me-ex">Andel av treningskalorier som legges til</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Når en økt gir ekstra kalorier, legges denne andelen av forbrenningen til dagens mål og kosekvoten. Forbrenning anslås ofte for høyt, så 50–75 % er et trygt utgangspunkt. I menyen brukes samme andel av treningsprogrammet.</span></div>
   </div>`;
 }
@@ -1357,13 +1357,14 @@ function trainLine(date){
 /* ---------- Kosekvote ---------- */
 function weekDates(ds){const d=new Date(ds+"T12:00:00");const off=dowOf(d)-1;return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()-off+i);return iso(x)})}
 function kosDay(ds,future){
-  const lb=logBase(),share=kosShare()/100,base=lb*(1-share);
+  const share=kosShare()/100;
   let bonus=trainBonus(ds);
   if(future&&!dayTrain(ds).length)bonus=Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
   const dl=dayLog(ds),t=dayTotals(dl);
   const kosE=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
+  const day=logBase()+bonus,base=day*(1-share);
   const used=t.n?kosE+Math.max(0,(t.kcal-kosE)-base):0;
-  return{earned:lb*share+bonus,bonus,used,kosE,base,logged:t.n>0};
+  return{earned:day*share,bonus,used,kosE,base,logged:t.n>0};
 }
 function kosStatus(ds){
   const wk=weekDates(ds),today=iso(new Date());let carry=0,cur=null,future=0;const days=[];
@@ -1381,7 +1382,7 @@ function kosCard(ds){
     <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.earned/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
     <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt</span></div>
     <div class="actions"><button class="btn sm primary" data-logedit="x:kos">${ICON.plus}Før opp kos</button></div>
-    <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(logBase()*(1-kosShare()/100))} kcal på en dag uten trening), trekkes også det fra. Gjennomførte økter øker kvoten for dagen. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
+    <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(logBase()*(1-kosShare()/100))} kcal på en dag uten trening, mer på dager med gjennomført trening), trekkes også det fra. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
 }
 function snackLogCard(ds){
   if(!S.snacks.length)return"";
@@ -1535,17 +1536,25 @@ function v4Click(t){
 }
 
 /* ---------- Porsjoner etter kaloribehov ---------- */
-function myPortion(r,meal){
-  if(!S.scalePortion||!r)return 1;
-  const tgt=S.kcal*(+S.split[meal]||0)/100;if(!(tgt>0))return 1;
-  return Math.min(2.5,Math.max(.5,Math.round(tgt/kcal(r)*4)/4));
+/* Planlagt kaloribehov for en dag i perioden: behov uten trening + andel av de øktene som er planlagt den dagen */
+function planKcal(d){
+  const e=energy();
+  if(d==null||!(S.me.auto&&e))return S.kcal;
+  if(!trainInEnergy())return e.base;
+  return e.base+Math.round(plannedFor(addDays(S.start,d)).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
 }
-const totalPortions = (r,meal) => myPortion(r,meal)+Math.max(0,S.persons-1);
-function portionPen(r,meal){
-  if(!S.scalePortion)return 0;const tgt=S.kcal*(+S.split[meal]||0)/100;if(!(tgt>0))return 0;
+function avgPlanKcal(){let t=0;for(let d=0;d<S.days;d++)t+=planKcal(d);return t/S.days}
+function myPortion(r,meal,d){
+  if(!S.scalePortion||!r)return 1;
+  const tgt=planKcal(d)*(+S.split[meal]||0)/100;if(!(tgt>0))return 1;
+  return Math.min(2.5,Math.max(.5,Math.round(tgt/kcal(r)*10)/10));
+}
+const totalPortions = (r,meal,d) => myPortion(r,meal,d)+Math.max(0,S.persons-1);
+function portionPen(r,meal,d){
+  if(!S.scalePortion)return 0;const tgt=planKcal(d)*(+S.split[meal]||0)/100;if(!(tgt>0))return 0;
   return Math.max(0,Math.abs(Math.log(tgt/kcal(r)))-.15)*1.5;
 }
-const portionChoices = (r,meal) => [...new Set([.5,1,1.5,2,myPortion(r,meal)])].sort((a,b)=>a-b);
+const portionChoices = (r,meal,d) => [...new Set([.5,1,1.5,2,myPortion(r,meal,d)])].sort((a,b)=>a-b);
 
 /* ---------- Boot ---------- */
 syncKcal(); ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
