@@ -543,7 +543,7 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true},exFactor:75,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[]};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[]};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -571,9 +571,9 @@ function candidates(meal,maxT){
 function newInv(){return{lots:[],buy:{},used:{},waste:{}}}
 function lotsOf(inv,id,day){return inv.lots.filter(l=>l.id===id&&l.amt>1e-6&&l.exp>=day).sort((a,b)=>a.exp-b.exp)}
 function expire(inv,day){inv.lots=inv.lots.filter(l=>{if(l.amt<=1e-6)return false;if(l.exp<day){inv.waste[l.id]=(inv.waste[l.id]||0)+l.amt;return false}return true})}
-function quote(inv,r,day){
+function quote(inv,r,day,mult){
   let marg=0,restVal=0,newLeft=0;const rest=[];
-  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;const a=a0*S.persons;
+  for(const[id,a0]of r.i){const g=ING[id];if(g.c==="basis")continue;const a=a0*(mult??S.persons);
     const av=lotsOf(inv,id,day).reduce((x,l)=>x+l.amt,0);const from=Math.min(av,a);
     if(from>1e-6&&fresh(g)){restVal+=from*unit(g);rest.push(id)}
     const need=a-from;if(need>1e-6){const packs=Math.ceil(need/g.pk-1e-9);marg+=packs*g.pp;if(fresh(g))newLeft+=(packs*g.pk-need)*unit(g)}}
@@ -589,7 +589,7 @@ function walk(slots,upto,inv,onSlot){
   let day=-1;
   for(let j=0;j<upto;j++){const s=slots[j];
     if(s.d!==day){for(let d=day+1;d<=s.d;d++){expire(inv,d);applySnacks(inv,d)}day=s.d}
-    if(s.id){const r=RBY[s.id];onSlot&&onSlot(j,quote(inv,r,s.d));apply(inv,r,s.d)}}
+    if(s.id){const r=RBY[s.id],tp=totalPortions(r,s.meal);onSlot&&onSlot(j,quote(inv,r,s.d,tp));apply(inv,r,s.d,tp)}}
   return day;
 }
 function invBefore(slots,idx){const inv=newInv();const day=walk(slots,idx,inv);for(let d=day+1;d<=slots[idx].d;d++){expire(inv,d);applySnacks(inv,d)}return inv}
@@ -606,13 +606,13 @@ function simulate(slots){
 }
 
 function score(r,meal,used,prevPr,inv,day){
-  const prof=PROFILES[S.profile],sb=slotBudget(meal),full=costPer(r)*S.persons;
+  const prof=PROFILES[S.profile],sb=slotBudget(meal),tp=totalPortions(r,meal),full=costPer(r)*tp;
   let c=full,bonus=0;
-  if(S.smartRest&&inv){const q=quote(inv,r,day);c=q.marg*.6+full*.4;bonus=q.restVal/sb*1.5-q.newLeft/sb*2}
+  if(S.smartRest&&inv){const q=quote(inv,r,day,tp);c=q.marg*.6+full*.4;bonus=q.restVal/sb*1.5-q.newLeft/sb*2}
   const costPen=Math.max(0,c-sb)/sb*2+c/sb*.3;
   const rep=(used[r.id]||0)*(meal==="middag"?1.6:.5);
   const same=(meal==="middag"&&prevPr&&prevPr===r.pr)?(bonus>0?.3:.7):0;
-  return macroDist(r,prof)*3+costPen+rep+same-bonus;
+  return macroDist(r,prof)*3+costPen+rep+same-bonus+portionPen(r,meal);
 }
 function generate(seed){
   const rand=rng(seed);const used={};const slots=[];let prevPr=null;const inv=newInv();
@@ -627,7 +627,7 @@ function generate(seed){
       const top=ranked.slice(0,3);const w=[.55,.3,.15].slice(0,top.length);const sum=w.reduce((a,b)=>a+b,0);
       let x=rand()*sum,pick=top[0].r;for(let i=0;i<top.length;i++){x-=w[i];if(x<=0){pick=top[i].r;break}}
       used[pick.id]=(used[pick.id]||0)+1;if(meal==="middag")prevPr=pick.pr;
-      apply(inv,pick,d);
+      apply(inv,pick,d,totalPortions(pick,meal));
       slots.push({d,meal,id:pick.id,relaxed});
     }
   }
@@ -705,10 +705,10 @@ function renderMeny(){
   const filled=P.slots.filter(s=>s.id);
   const cost=SIM.cost;
   const perPD=cost/S.persons/S.days;
-  let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id];E+=kcal(r);pP+=r.mac[0]*4;pF+=r.mac[1]*9;pK+=r.mac[2]*4});
+  let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id],q=myPortion(r,s.meal);E+=kcal(r)*q;pP+=r.mac[0]*4*q;pF+=r.mac[1]*9*q;pK+=r.mac[2]*4*q});
   const kcalDay=E/S.days; const mp={p:pP/E*100||0,f:pF/E*100||0,k:pK/E*100||0};
   const prof=PROFILES[S.profile];
-  const share=MEALS.filter(m=>S.meals[m]).reduce((a,m)=>a+MEAL_SHARE[m],0);
+  const share=MEALS.filter(m=>S.meals[m]).reduce((a,m)=>a+(+S.split[m]||0)/100,0);
   const expected=S.kcal*share;
   const over=cost>S.budget; const pct=Math.min(100,cost/S.budget*100);
   const dist=(Math.abs(mp.p-prof.p)+Math.abs(mp.f-prof.f)+Math.abs(mp.k-prof.k));
@@ -725,7 +725,7 @@ function renderMeny(){
     <div class="stats">
       <div class="stat"><span class="k">Handlekurv</span><span class="v">${nf(cost)}<small> kr</small></span></div>
       <div class="stat"><span class="k">Per pers./dag</span><span class="v">${nf(perPD)}<small> kr</small></span></div>
-      <div class="stat"><span class="k">Kcal/pers./dag</span><span class="v">${nf(kcalDay)}</span></div>
+      <div class="stat"><span class="k">Kcal deg/dag</span><span class="v">${nf(kcalDay)}</span></div>
     </div>
     <div class="meter">
       <div class="meter-head"><span class="lbl">Budsjett</span><span class="val num">${nf(cost)} av ${nf(S.budget)} kr</span></div>
@@ -743,7 +743,7 @@ function renderMeny(){
       <div class="track" role="img" aria-label="Protein ${Math.round(mp.p)}, fett ${Math.round(mp.f)}, karbohydrat ${Math.round(mp.k)} prosent"><div class="seg c-p" style="width:${mp.p}%"></div><div class="seg c-f" style="width:${mp.f}%"></div><div class="seg c-k" style="width:${mp.k}%"></div></div>
       <div class="legend"><span><i class="dot c-p"></i>Protein ${Math.round(mp.p)} %</span><span><i class="dot c-f"></i>Fett ${Math.round(mp.f)} %</span><span><i class="dot c-k"></i>Karbo ${Math.round(mp.k)} %</span></div>
       <span class="status ${nutStatus[0]}">${nutStatus[1]}</span>
-      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per person og dag. Med ${S.kcal} kcal i dagsbehov bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
+      <span class="note">Planlagte måltider gir ${nf(kcalDay)} kcal per dag for deg. Med ${S.kcal} kcal i dagsbehov bør disse måltidene gi rundt ${nf(expected)} kcal.</span>
     </div>
     ${relaxed||missing?`<span class="note flag">${missing?missing+" måltid mangler oppskrift som passer kostholdet. ":""}${relaxed?relaxed+" måltid tar lengre tid enn tidsgrensen.":""}</span>`:""}
     ${skipped?`<span class="note">${skipped} ${skipped===1?"måltid er":"måltider er"} tatt ut av menyen og handlelisten. Endre det under Oppsett eller ved å trykke på måltidet.</span>`:""}
@@ -752,7 +752,7 @@ function renderMeny(){
   for(let d=0;d<S.days;d++){
     const date=addDays(S.start,d); const wk=date.getDay()===0||date.getDay()===6;
     const slots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===d);
-    const dayCost=slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*S.persons:0),0);
+    const dayCost=slots.reduce((a,s)=>a+(s.id?costPer(RBY[s.id])*totalPortions(RBY[s.id],s.meal):0),0);
     h+=`<div class="day"><div class="day-head"><h3>${cap(fmtDay(date))}</h3><span class="meta num">${wk?"Helg · ":""}${kr(dayCost)}</span></div>${trainLine(date)}<div class="meals">`;
     slots.forEach(s=>{
       if(s.skip){const sk=skips[slotKey(s)]||{r:"annet"};
@@ -762,7 +762,7 @@ function renderMeny(){
       const r=RBY[s.id]; const info=SIM.info[s.idx];
       const rest=info&&info.rest.length?`<span class="rest">${ICON.leaf}Bruker rest: ${info.rest.map(id=>short(ING[id])).join(", ")}</span>`:"";
       h+=`<div class="meal"><button class="meal-main" data-open="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">${esc(r.n)}</span>
-        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*S.persons)}</span><span class="num">${nf(kcal(r))} kcal</span><span class="num">${r.mac[0]} g protein</span></span>${rest}${loggedTag(s)}</button>
+        <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*totalPortions(r,s.meal))}</span><span class="num">${S.scalePortion?`Din porsjon ${portionLabel(myPortion(r,s.meal))} · ${nf(kcal(r)*myPortion(r,s.meal))} kcal`:nf(kcal(r))+" kcal"}</span><span class="num">${r.mac[0]} g protein</span></span>${rest}${loggedTag(s)}</button>
         <button class="swap" data-swap="${s.idx}" aria-label="Bytt ${esc(r.n)}" title="Bytt rett">${ICON.swap}</button></div>`;
     });
     h+=`</div></div>`;
@@ -849,11 +849,11 @@ function openRecipe(idx){
   const m=macroPct(r); const info=SIM.info[idx]||{rest:[]};
   $("#sheet").innerHTML=`<span class="grab"></span>
    <div><span class="mtype">${MEAL_LABEL[s.meal]} · ${fmtDay(date)}</span><h2 id="sheetTitle">${esc(r.n)}</h2></div>
-   <div class="facts"><div class="fact"><b>${r.t}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*S.persons)}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r))}</b><span>kcal/porsjon</span></div><div class="fact"><b>${r.mac[0]} g</b><span>protein</span></div></div>
+   <div class="facts"><div class="fact"><b>${r.t}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*totalPortions(r,s.meal))}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r)*myPortion(r,s.meal))}</b><span>kcal for deg</span></div><div class="fact"><b>${nf(r.mac[0]*myPortion(r,s.meal))} g</b><span>protein for deg</span></div></div>
    <div class="meter"><div class="track"><div class="seg c-p" style="width:${m.p}%"></div><div class="seg c-f" style="width:${m.f}%"></div><div class="seg c-k" style="width:${m.k}%"></div></div>
    <div class="legend"><span><i class="dot c-p"></i>Protein ${r.mac[0]} g</span><span><i class="dot c-f"></i>Fett ${r.mac[1]} g</span><span><i class="dot c-k"></i>Karbo ${r.mac[2]} g</span></div></div>
-   <h3>Ingredienser · ${S.persons} ${S.persons===1?"porsjon":"porsjoner"}</h3>
-   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*S.persons)}</span></li>`}).join("")}</ul>
+   <h3>Ingredienser · ${portionLabel(totalPortions(r,s.meal))} porsjoner</h3>${S.scalePortion?`<p class="note" style="margin:-6px 0 0">Din porsjon er ${portionLabel(myPortion(r,s.meal))} (${nf(kcal(r)*myPortion(r,s.meal))} kcal, ${S.split[s.meal]} % av dagsbehovet)${S.persons>1?`, pluss ${S.persons-1} standardporsjon${S.persons>2?"er":""} til resten av husstanden`:""}.</p>`:""}
+   <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*totalPortions(r,s.meal))}</span></li>`}).join("")}</ul>
    <h3>Slik gjør du</h3>
    <ol class="steps">${r.s.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
    <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
@@ -888,7 +888,7 @@ function setTab(t){tab=t;["meny","liste","logg","trening","oppsett"].forEach(x=>
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
-  SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
+  syncKcal();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
 }
 
 document.addEventListener("click",e=>{
@@ -1022,7 +1022,7 @@ const monthOf = ds => ds.slice(0,7);
 function dayLog(ds,create){const m=monthOf(ds);if(!LOG[m]){if(!create)return null;LOG[m]={}}if(!LOG[m][ds]){if(!create)return null;LOG[m][ds]={slots:{},extra:[],train:[]}}return LOG[m][ds]}
 function saveLog(ds){const m=monthOf(ds);LOGMETA[m]=Date.now();store.set("log",LOG);store.set("logmeta",LOGMETA);queueLog(m)}
 function dayTotals(dl){const t={kcal:0,p:0,f:0,k:0,n:0};if(!dl)return t;[...Object.values(dl.slots||{}),...(dl.extra||[])].forEach(e=>{t.kcal+=+e.kcal||0;t.p+=+e.p||0;t.f+=+e.f||0;t.k+=+e.k||0;t.n++});return t}
-const portionLabel = p => p===.5?"½":p===1.5?"1½":String(p);
+const portionLabel = p => p===.5?"½":p===1.5?"1½":(+p).toLocaleString("nb-NO",{maximumFractionDigits:2});
 function entryFromRecipe(r,p){return{name:r.n+(p!==1?` (${portionLabel(p)} porsjon)`:""),kcal:Math.round(kcal(r)*p),p:Math.round(r.mac[0]*p),f:Math.round(r.mac[1]*p),k:Math.round(r.mac[2]*p),src:"plan",recipeId:r.id,portion:p,t:Date.now()}}
 function loggedTag(s){const dl=dayLog(iso(addDays(S.start,s.d)));const e=dl&&dl.slots[s.meal];return e?`<span class="logged">${ICON.tick}Logget · ${nf(e.kcal)} kcal</span>`:""}
 function entryHtml(e,key){
@@ -1078,7 +1078,7 @@ function renderLogg(){
 }
 function quickLog(idx){
   const s=P.slots[idx];if(!s||!s.id)return;const ds=iso(addDays(S.start,s.d));
-  dayLog(ds,true).slots[s.meal]=entryFromRecipe(RBY[s.id],1);saveLog(ds);renderLogg();renderMeny();toast("Lagt i loggen");
+  dayLog(ds,true).slots[s.meal]=entryFromRecipe(RBY[s.id],myPortion(RBY[s.id],s.meal));saveLog(ds);renderLogg();renderMeny();toast("Lagt i loggen");
 }
 function deleteLog(key){
   const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds);if(!dl)return;
@@ -1087,18 +1087,18 @@ function deleteLog(key){
 }
 function openLog(key){
   const date=addDays(S.start,logDay), ds=iso(date), dl=dayLog(ds);
-  const isExtra=key.startsWith("x:"), xi=isExtra&&key!=="x:new"?+key.slice(2):null;
+  const isExtra=key.startsWith("x:"), xi=isExtra&&key!=="x:new"&&key!=="x:kos"?+key.slice(2):null;
   const ex=isExtra?(xi!==null?dl.extra[xi]:null):(dl&&dl.slots[key])||null;
   const slot=isExtra?null:P.slots.find(s=>s.d===logDay&&s.meal===key);
   const recipe=slot&&slot.id?RBY[slot.id]:null;
   LOGCTX={ds,key,xi,isExtra,src:ex?ex.src:"manual",photo:null,recipe,portion:ex&&ex.src==="plan"?ex.portion:null,note:ex?ex.note||"":"",aiName:""};
   const v=f=>ex&&ex[f]!=null?ex[f]:"";
-  const title=isExtra?"Legg til måltid":MEAL_LABEL[key];
+  const title=key==="x:kos"?"Bruk av kosekvoten":isExtra?"Legg til måltid":MEAL_LABEL[key];
   const hint=SAMPLE?"Skriv hva du spiste"+(SAMPLE_IMG?" eller ta et bilde":"")+", så anslår Claude kalorier og næringsstoffer. Du kan justere tallene før du lagrer.":"Skriv hva du spiste for et grovt anslag fra standardporsjoner, eller fyll inn tallene selv.";
   $("#sheet").innerHTML=`<span class="grab"></span>
    <div><span class="mtype">${esc(title)} · ${fmtDay(date)}</span><h2 id="sheetTitle">Hva spiste du?</h2></div>
-   ${isExtra?`<div class="field-s"><span class="t">Type</span><div class="chips">${LOG_TYPES.map((t,i)=>`<label class="chip"><input type="radio" name="l-type" value="${t}" ${(ex?ex.type===t:i===0)?"checked":""}><span>${t}</span></label>`).join("")}</div></div>`:""}
-   ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${[.5,1,1.5,2].map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
+   ${isExtra?`<div class="field-s"><span class="t">Type</span><div class="chips">${LOG_TYPES.map((t,i)=>`<label class="chip"><input type="radio" name="l-type" value="${t}" ${(ex?ex.type===t:(key==="x:kos"?t==="Kos":i===0))?"checked":""}><span>${t}</span></label>`).join("")}</div></div>`:""}
+   ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${portionChoices(recipe,key).map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon${S.scalePortion&&p===myPortion(recipe,key)?" · din":""}</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
    <div class="field-s"><label class="t" for="l-desc">Beskrivelse</label><textarea id="l-desc" class="txt" rows="2" placeholder="F.eks. biff med pommes frites og bearnaise, ett glass rødvin">${esc(ex&&ex.src!=="plan"?(ex.desc||ex.name||""):"")}</textarea></div>
    <div class="photo-row" id="photoRow" ${SAMPLE&&SAMPLE_IMG?"":"hidden"}><label class="btn" for="l-photo">${ICON.camera}Ta eller velg bilde</label><input type="file" id="l-photo" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" class="sr"><img id="l-prev" alt="Bilde av måltidet" hidden></div>
    <div class="actions"><button class="btn" id="l-est">${ICON.spark}Anslå næringsinnhold</button></div>
@@ -1257,6 +1257,7 @@ function normalizeS(){
   if(!Array.isArray(S.snacks))S.snacks=DEFAULTS.snacks.map(x=>({...x}));
   if(!Array.isArray(S.program))S.program=[];
   if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
+  if(S.scalePortion==null)S.scalePortion=true;
 }
 const PAL = [[1.2,"Stillesittende","Kontorjobb, lite gåing"],[1.375,"Litt aktiv","Noe gåing i hverdagen"],[1.55,"Aktiv","Står eller går mye"],[1.725,"Fysisk tungt arbeid","Bygg, pleie, lager"]];
 const GOALS = [[-500,"Ned i vekt","ca. 0,5 kg i uka"],[-250,"Rolig ned i vekt","ca. 0,25 kg i uka"],[0,"Holde vekten",""],[250,"Opp i vekt","ca. 0,25 kg i uka"]];
@@ -1277,8 +1278,8 @@ function meReady(){const m=S.me;return m.sex&&+m.age>0&&+m.h>0&&+m.w>0}
 function energy(){
   const m=S.me;if(!meReady())return null;
   const bmr=10*m.w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161);
-  const tdee=bmr*m.pal, raw=tdee+(+m.goal), floor=m.sex==="m"?1500:1200;
-  return{bmr:Math.round(bmr),tdee:Math.round(tdee),target:Math.max(floor,Math.round(raw/10)*10),clamped:raw<floor,floor};
+  const tdee=bmr*m.pal, train=trainInEnergy()?progAvg():0, raw=tdee+train+(+m.goal), floor=m.sex==="m"?1500:1200;
+  return{bmr:Math.round(bmr),tdee:Math.round(tdee),train:Math.round(train),target:Math.max(floor,Math.round(raw/10)*10),clamped:raw<floor,floor};
 }
 function syncKcal(){const e=energy();if(S.me.auto&&e)S.kcal=e.target}
 const splitSum = () => ["frokost","lunsj","middag","snacks"].reduce((a,k)=>a+(+S.split[k]||0),0);
@@ -1294,9 +1295,10 @@ function meCard(){
       <div class="field-row"><label class="t" for="me-w">Vekt, kg</label><input type="number" id="me-w" inputmode="decimal" min="35" max="250" step="0.1" value="${m.w}"></div></div>
     <div class="field"><label class="t" for="me-pal">Hverdagsaktivitet</label><select class="sel" id="me-pal">${PAL.map(([v,n,d])=>`<option value="${v}" ${+m.pal===v?"selected":""}>${n} – ${d}</option>`).join("")}</select><span class="hint">Uten trening. Treningsøktene legges til for seg.</span></div>
     <div class="field"><label class="t" for="me-goal">Mål</label><select class="sel" id="me-goal">${GOALS.map(([v,n,d])=>`<option value="${v}" ${+m.goal===v?"selected":""}>${n}${d?" – "+d:""}</option>`).join("")}</select>
-      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål <b>${nf(e.target)} kcal per dag</b></span>${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
-      <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label></div>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
-    <div class="field"><div class="field-row"><label class="t" for="me-ex">Treningskalorier du kan spise opp</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Forbrenning fra trening anslås ofte for høyt. 50–75 % er et trygt utgangspunkt.</span></div>
+      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span>${trainInEnergy()?`<span>Treningsprogram i snitt <b>+${nf(e.train)} kcal</b></span>`:""}<span>Ditt mål <b>${nf(e.target)} kcal per dag</b></span>${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
+      <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label><label class="chip"><input type="checkbox" id="me-train" ${m.inclTrain?"checked":""}><span>Ta med treningsprogrammet</span></label></div>
+      <span class="hint">${m.inclTrain?(S.program.length?`Snittet av ukeprogrammet (${nf(progAvg()*7)} kcal i uka) er med i dagsbehovet. Da gir bare økter utenom programmet, eller lengre og hardere økter enn planlagt, ekstra kalorier.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Treningen er ikke med i dagsbehovet. Hver loggede økt gir i stedet ekstra kalorier den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
+    <div class="field"><div class="field-row"><label class="t" for="me-ex">Andel av treningskalorier som legges til</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Når en økt gir ekstra kalorier, legges denne andelen av forbrenningen til dagens mål og kosekvoten. Forbrenning anslås ofte for høyt, så 50–75 % er et trygt utgangspunkt. Gjelder også treningsprogrammet når det er med i dagsbehovet.</span></div>
   </div>`;
 }
 function splitCard(){
@@ -1304,9 +1306,11 @@ function splitCard(){
   const row=(k,lbl)=>`<label for="sp-${k}">${lbl}</label><span><input type="number" id="sp-${k}" inputmode="numeric" min="0" max="100" value="${S.split[k]}"> %</span><span class="kc">${nf(S.kcal*(+S.split[k]||0)/100)} kcal</span>`;
   const avail=SNACK_CAT.filter(c=>!S.snacks.some(x=>x.id===c.id));
   return `<div class="card">
-    <div class="field"><span class="t">Fordeling av dagens kalorier</span><span class="hint">Hvor mye av ${nf(S.kcal)} kcal som skal gå til måltider og faste mellommåltider. Resten blir kosekvote.</span>
+    <div class="field"><span class="t">Fordeling av dagens kalorier</span><span class="hint">Hvor mye av ${nf(S.kcal)} kcal som skal gå til måltider og faste mellommåltider. Resten blir kosekvote. Skriv inn prosent, og endringen lagres når du går ut av feltet.</span>
       <div class="split">${row("frokost","Frokost")}${row("lunsj","Lunsj")}${row("middag","Middag")}${row("snacks","Faste mellommåltider")}
         <span class="kosrow">Kosekvote</span><span class="kosrow num">${kos} %</span><span class="kc kosrow">${nf(S.kcal*kos/100)} kcal</span></div>
+      <div class="chips"><label class="chip"><input type="checkbox" id="sp-scale" ${S.scalePortion?"checked":""}><span>Tilpass min porsjon til fordelingen</span></label></div>
+      <span class="hint">${S.scalePortion?"Menyen regner ut hvor stor porsjon du trenger av hver rett for å treffe prosenten for måltidet. Resten av husstanden får standardporsjon, og handlelisten justeres etter det.":"Alle får standardporsjon av hver rett."}</span>
       ${sum>100?`<span class="flag">Fordelingen er ${sum} %. Trekk ned noe for å få en kosekvote.</span>`:`<span class="hint">Kosekvoten er ${nf(S.kcal*kos/100*7)} kcal i uka, pluss det du tjener på trening.</span>`}</div>
     <div class="field"><span class="t">Faste mellommåltider</span><span class="hint">Spises hver dag. Varene legges i handlelisten for én person.</span>
       <div>${S.snacks.map((sn,i)=>{const x=snackInfo(sn);return`<div class="snack"><span>${esc(x.n)}</span><span class="num">${nf(x.kcal)} kcal</span><button class="xbtn" data-sndel="${i}" aria-label="Fjern ${esc(x.n)}">×</button></div>`}).join("")||'<span class="hint">Ingen faste mellommåltider.</span>'}</div>
@@ -1333,7 +1337,14 @@ const sessName = x => (ACTS[x.act]||ACTS.annet).n;
 const plannedFor = date => S.program.filter(p=>p.dows.includes(dowOf(date)));
 const dayTrain = ds => {const dl=dayLog(ds);return(dl&&dl.train)||[]};
 const trainBurn = ds => dayTrain(ds).reduce((a,x)=>a+sessKcal(x),0);
-const trainBonus = ds => Math.round(trainBurn(ds)*S.exFactor/100);
+const trainInEnergy = () => !!(S.me.inclTrain&&S.program.length&&S.me.auto&&meReady());
+const progAvg = () => S.program.reduce((a,p)=>a+sessKcal(p)*p.dows.length,0)/7*S.exFactor/100;
+function trainBonus(ds){
+  const burn=dayTrain(ds).reduce((a,x)=>{
+    if(trainInEnergy()&&x.planId){const p=S.program.find(q=>q.id===x.planId);return a+(p?Math.max(0,sessKcal(x)-sessKcal(p)):sessKcal(x))}
+    return a+sessKcal(x)},0);
+  return Math.round(burn*S.exFactor/100);
+}
 function trainLine(date){
   const ds=iso(date),pl=plannedFor(date),done=dayTrain(ds);
   if(!pl.length&&!done.length)return"";
@@ -1347,9 +1358,11 @@ function weekDates(ds){const d=new Date(ds+"T12:00:00");const off=dowOf(d)-1;ret
 function kosDay(ds,future){
   const share=kosShare()/100,base=S.kcal*(1-share);
   let bonus=trainBonus(ds);
-  if(future&&!dayTrain(ds).length)bonus=Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
-  const t=dayTotals(dayLog(ds));
-  return{earned:S.kcal*share+bonus,bonus,used:t.n?Math.max(0,t.kcal-base):0,base,logged:t.n>0};
+  if(future&&!dayTrain(ds).length&&!trainInEnergy())bonus=Math.round(plannedFor(new Date(ds+"T12:00:00")).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100);
+  const dl=dayLog(ds),t=dayTotals(dl);
+  const kosE=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
+  const used=t.n?kosE+Math.max(0,(t.kcal-kosE)-base):0;
+  return{earned:S.kcal*share+bonus,bonus,used,kosE,base,logged:t.n>0};
 }
 function kosStatus(ds){
   const wk=weekDates(ds),today=iso(new Date());let carry=0,cur=null,future=0;const days=[];
@@ -1366,7 +1379,8 @@ function kosCard(ds){
     <div class="kos-rows"><span>Overført fra tidligere i uka</span><span>${nf(k.carry)}</span><span>Opptjent i dag${k.cur.bonus?" (inkl. trening)":""}</span><span>+${nf(k.cur.earned)}</span><span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
     <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.earned/mx*100}%"></span><span class="use" style="height:${d.used/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
     <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt</span></div>
-    <p class="note" style="margin:0">Alt du spiser utover måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag) trekkes fra kvoten. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
+    <div class="actions"><button class="btn sm primary" data-logedit="x:kos">${ICON.plus}Før opp kos</button></div>
+    <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag), trekkes også det fra. Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
 }
 function snackLogCard(ds){
   if(!S.snacks.length)return"";
@@ -1398,7 +1412,7 @@ function renderTrening(){
       <div class="stat"><span class="k">Minutter</span><span class="v">${nf(mins)}</span></div>
       <div class="stat"><span class="k">Forbrent</span><span class="v">${nf(burn)}<small> kcal</small></span></div>
     </div>
-    <span class="note">${cap(fmtDay(date))}: ${nf(trainBurn(ds))} kcal forbrent, ${nf(trainBonus(ds))} kcal (${S.exFactor} %) lagt til dagens mål og kosekvoten.${+S.me.w>0?"":" Legg inn vekten din under Oppsett for bedre anslag (bruker 75 kg)."}</span>
+    <span class="note">${cap(fmtDay(date))}: ${nf(trainBurn(ds))} kcal forbrent, ${nf(trainBonus(ds))} kcal (${S.exFactor} %) lagt til dagens mål og kosekvoten.${trainInEnergy()?" Treningsprogrammet er allerede med i dagsbehovet, så bare økter utenom programmet og ekstra innsats gir bonus.":""}${+S.me.w>0?"":" Legg inn vekten din under Oppsett for bedre anslag (bruker 75 kg)."}</span>
   </div>`;
   const pl=plannedFor(date),done=dayTrain(ds);
   h+=`<h2 class="section-h">Økter ${fmtDay(date)}</h2>`;
@@ -1485,6 +1499,8 @@ function v4Change(t){
   else if(id==="me-pal"){S.me.pal=+t.value}
   else if(id==="me-goal"){S.me.goal=+t.value}
   else if(id==="me-auto"){S.me.auto=t.checked}
+  else if(id==="me-train"){S.me.inclTrain=t.checked}
+  else if(id==="sp-scale"){S.scalePortion=t.checked}
   else if(id==="me-ex"){S.exFactor=+t.value}
   else if(id.startsWith("sp-")){S.split[id.slice(3)]=Math.min(100,Math.max(0,Math.round(+t.value||0)))}
   else if(nm==="tp-dow"||nm==="tp-int"||id.startsWith("tp-")){updTEst("tp");return true}
@@ -1516,6 +1532,19 @@ function v4Click(t){
   if(d.snlog!==undefined){logSnack(+d.snlog);return true}
   return false;
 }
+
+/* ---------- Porsjoner etter kaloribehov ---------- */
+function myPortion(r,meal){
+  if(!S.scalePortion||!r)return 1;
+  const tgt=S.kcal*(+S.split[meal]||0)/100;if(!(tgt>0))return 1;
+  return Math.min(2.5,Math.max(.5,Math.round(tgt/kcal(r)*4)/4));
+}
+const totalPortions = (r,meal) => myPortion(r,meal)+Math.max(0,S.persons-1);
+function portionPen(r,meal){
+  if(!S.scalePortion)return 0;const tgt=S.kcal*(+S.split[meal]||0)/100;if(!(tgt>0))return 0;
+  return Math.max(0,Math.abs(Math.log(tgt/kcal(r)))-.15)*1.5;
+}
+const portionChoices = (r,meal) => [...new Set([.5,1,1.5,2,myPortion(r,meal)])].sort((a,b)=>a-b);
 
 /* ---------- Boot ---------- */
 syncKcal(); ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
