@@ -301,6 +301,9 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .hz{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px 10px;font-size:13px;align-items:baseline}
 .hz .h{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .hz .num{text-align:right}
+.lgd i.calc{border-top:2px dotted var(--mustard)}
+.calib{background:var(--sunk);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.calib b{font-family:var(--f-mono);font-weight:500}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -552,7 +555,7 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:""},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[]};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[]};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -897,7 +900,7 @@ function setTab(t){tab=t;["meny","liste","logg","trening","oppsett"].forEach(x=>
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
-  syncKcal();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
+  ADAPT=undefined;syncKcal();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
 }
 
 document.addEventListener("click",e=>{
@@ -1291,7 +1294,7 @@ function meReady(){const m=S.me;return m.sex&&+m.age>0&&+m.h>0&&+m.w>0}
 function energy(){
   const m=S.me;if(!meReady())return null;
   const bmr=10*m.w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161);
-  const tdee=bmr*m.pal, train=trainInEnergy()?progAvg():0, floor=m.sex==="m"?1500:1200;
+  const tdee=bmr*m.pal+adaptOffset(), train=trainInEnergy()?progAvg():0, floor=m.sex==="m"?1500:1200;
   const rawBase=tdee+(+m.goal), raw=rawBase+train, base=Math.max(floor,Math.round(rawBase/10)*10);
   return{bmr:Math.round(bmr),tdee:Math.round(tdee),train:Math.round(train),base,target:Math.max(base,Math.round(raw/10)*10),clamped:rawBase<floor,floor};
 }
@@ -1310,8 +1313,8 @@ function meCard(){
       <div class="field-row"><label class="t" for="me-w">Vekt, kg</label><input type="number" id="me-w" inputmode="decimal" min="35" max="250" step="0.1" value="${m.w}"></div></div>
     <div class="field"><label class="t" for="me-pal">Hverdagsaktivitet</label><select class="sel" id="me-pal">${PAL.map(([v,n,d])=>`<option value="${v}" ${+m.pal===v?"selected":""}>${n} – ${d}</option>`).join("")}</select><span class="hint">Uten trening. Treningsøktene legges til for seg.</span></div>
     <div class="field"><label class="t" for="me-goal">Mål</label><select class="sel" id="me-goal">${GOALS.map(([v,n,d])=>`<option value="${v}" ${+m.goal===v?"selected":""}>${n}${d?" – "+d:""}</option>`).join("")}</select>
-      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span><span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Treningsprogram i snitt <b>+${nf(e.train)} kcal</b></span><span>Menyen og loggen <b>${nf(e.target)} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
-      <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label><label class="chip"><input type="checkbox" id="me-train" ${m.inclTrain?"checked":""}><span>Ta med treningsprogrammet i menyen</span></label></div>
+      ${e?`<div class="res"><span>Hvilestoffskifte <b>${nf(e.bmr)} kcal</b></span><span>Med hverdagsaktivitet <b>${nf(e.tdee)} kcal</b></span>${adaptOffset()?`<span>Justert etter faktisk vekttrend <b>${adaptOffset()>0?"+":"−"}${nf(Math.abs(adaptOffset()))} kcal</b></span>`:""}<span>Ditt mål uten trening <b>${nf(e.base)} kcal</b></span>${trainInEnergy()?`<span>Treningsprogram i snitt <b>+${nf(e.train)} kcal</b></span><span>Menyen og loggen <b>${nf(e.target)} kcal per dag</b></span>`:""}${e.clamped?`<span class="flag">Satt til ${e.floor} kcal, som er et anbefalt minimum. Snakk med lege eller ernæringsfysiolog før du går lavere.</span>`:""}</div>
+      <div class="chips"><label class="chip"><input type="checkbox" id="me-auto" ${m.auto?"checked":""}><span>Bruk som energibehov</span></label><label class="chip"><input type="checkbox" id="me-train" ${m.inclTrain?"checked":""}><span>Ta med treningsprogrammet i menyen</span></label><label class="chip"><input type="checkbox" id="me-adapt" ${m.adaptive!==false?"checked":""}><span>Juster etter faktisk utvikling</span></label></div>
       <span class="hint">${m.inclTrain?(S.program.length?`Treningsprogrammet (${nf(progAvg()*7)} kcal i uka) er fordelt jevnt over alle dager, så menyen og loggen har samme mål hver dag. Dropper du en planlagt økt, trekkes kaloriene for den fra kosekvoten. Trener du mer enn planlagt, legges det til.`:"Ingen økter i treningsprogrammet ennå. Legg dem inn under Trening."):"Menyen planlegges uten trening. Hver gjennomført økt legges til kosekvoten den dagen."}</span>`:`<span class="hint">Fyll inn kjønn, alder, høyde og vekt for å regne ut behovet.</span>`}</div>
     <div class="field"><div class="field-row"><label class="t" for="me-ex">Andel av treningskalorier som legges til</label><output class="num" id="o-ex">${S.exFactor} %</output></div><input type="range" id="me-ex" min="0" max="100" step="25" value="${S.exFactor}"><span class="hint">Når en økt gir ekstra kalorier, legges denne andelen av forbrenningen til dagens mål og kosekvoten. Forbrenning anslås ofte for høyt, så 50–75 % er et trygt utgangspunkt. I menyen brukes samme andel av treningsprogrammet.</span></div>
   </div>`;
@@ -1526,6 +1529,7 @@ function v4Change(t){
   else if(id==="me-goal"){S.me.goal=+t.value}
   else if(id==="me-auto"){S.me.auto=t.checked}
   else if(id==="me-train"){S.me.inclTrain=t.checked}
+  else if(id==="me-adapt"){S.me.adaptive=t.checked}
   else if(id==="sp-scale"){S.scalePortion=t.checked}
   else if(id==="me-ex"){S.exFactor=+t.value}
   else if(id.startsWith("sp-")){S.split[id.slice(3)]=Math.min(100,Math.max(0,Math.round(+t.value||0)))}
@@ -1580,7 +1584,7 @@ const portionChoices = (r,meal,d) => [...new Set([.5,1,1.5,2,myPortion(r,meal,d)
 
 /* ---------- Kropp: målinger og prognose ---------- */
 let TVIEW=(()=>{try{return localStorage.getItem("matplan:tview")||"okter"}catch(e){return"okter"}})();
-let PSCN="plan";
+let PSCN=null;
 const STR_ACTS=["styrke","hiit"];
 const nf1 = n => (Math.round(n*10)/10).toLocaleString("nb-NO",{minimumFractionDigits:1,maximumFractionDigits:1});
 const sgn1 = n => (n>0?"+":n<0?"−":"±")+nf1(Math.abs(n));
@@ -1594,7 +1598,8 @@ function navyBF(m){
   return null;
 }
 function bfOf(m){const v=+m.bf>0?+m.bf:navyBF(m);return v!=null&&v>2&&v<70?v:null}
-function rmrAt(w){const m=S.me;return(10*w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161))*m.pal}
+function rmrRaw(w){const m=S.me;return(10*w+6.25*m.h-5*m.age+(m.sex==="m"?5:-161))*m.pal}
+function rmrAt(w){return rmrRaw(w)+adaptOffset()}
 const pastDays = n => {const out=[];for(let i=1;i<=n;i++){const d=new Date();d.setDate(d.getDate()-i);out.push(iso(d))}return out};
 function scenario(kind){
   const w=latestW();if(!meReady()||!(w>0))return null;
@@ -1634,12 +1639,13 @@ function trendKgWeek(){
 }
 function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r)));const n=r/p;return(n<1.5?1:n<3?2:n<7?5:10)*p}
 let CHART=null;
-function weightChart(pr,startDs){
+function weightChart(pr,startDs,retro){
   const meas=bodySorted().filter(m=>+m.w>0).map(m=>({t:new Date(m.date+"T12:00:00").getTime(),w:+m.w,lbl:fmtShort(new Date(m.date+"T12:00:00"))+": "+nf1(m.w)+" kg målt"}));
   const t0=new Date(startDs+"T12:00:00").getTime();
   const prog=pr.map(p=>({t:t0+p.wk*7*864e5,w:p.w,lbl:fmtShort(new Date(t0+p.wk*7*864e5))+": "+nf1(p.w)+" kg prognose"}));
   const tg=+S.me.targetW>0?+S.me.targetW:null;
-  const all=[...meas,...prog];const tMin=Math.min(...all.map(p=>p.t)),tMax=Math.max(...all.map(p=>p.t));
+  const rpts=(retro&&retro.pts||[]).map(p=>({t:p.t,w:p.w,lbl:fmtShort(new Date(p.t))+": "+nf1(p.w)+" kg beregnet fra loggen"}));
+  const all=[...meas,...prog,...rpts];const tMin=Math.min(...all.map(p=>p.t)),tMax=Math.max(...all.map(p=>p.t));
   let yMin=Math.min(...all.map(p=>p.w),tg??Infinity),yMax=Math.max(...all.map(p=>p.w),tg??-Infinity);
   const step=niceStep(Math.max(1,(yMax-yMin))/4);yMin=Math.floor((yMin-step*.3)/step)*step;yMax=Math.ceil((yMax+step*.3)/step)*step;
   const W=360,H=196,L=38,R=12,T=12,B=24;
@@ -1649,9 +1655,10 @@ function weightChart(pr,startDs){
   const path=a=>a.map((p,i)=>(i?"L":"M")+X(p.t).toFixed(1)+","+Y(p.w).toFixed(1)).join("");
   const tl=tg?`<line x1="${L}" x2="${W-R}" y1="${Y(tg)}" y2="${Y(tg)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"/><text class="ax" x="${W-R}" y="${Y(tg)-5}" text-anchor="end">Mål ${nf1(tg)} kg</text>`:"";
   CHART={pts:all.map(p=>({x:X(p.t),y:Y(p.w),lbl:p.lbl})).sort((a,b)=>a.x-b.x),W,H,T,B};
-  return`<div class="lgd">${meas.length?'<span><i></i>Målt vekt</span>':""}<span><i class="dash"></i>Prognose</span>${tg?'<span><i class="tgt"></i>Målvekt</span>':""}</div>
+  return`<div class="lgd">${rpts.length?'<span><i class="calc"></i>Beregnet fra loggen</span>':""}${meas.length?'<span><i></i>Målt vekt</span>':""}<span><i class="dash"></i>Prognose</span>${tg?'<span><i class="tgt"></i>Målvekt</span>':""}</div>
    <div class="wchart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Vekt over tid med prognose">${g}${xl}${tl}
     <path d="${path(prog)}" fill="none" stroke="var(--herb)" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round" opacity=".85"/>
+    ${rpts.length>1?`<path d="${path(rpts)}" fill="none" stroke="var(--mustard)" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>`:""}
     ${meas.length>1?`<path d="${path(meas)}" fill="none" stroke="var(--herb)" stroke-width="2" stroke-linejoin="round"/>`:""}
     ${meas.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.w)}" r="4.5" fill="var(--herb)" stroke="var(--surface)" stroke-width="2"/>`).join("")}
     <line id="ch-x" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-width="1" opacity="0"/>
@@ -1670,9 +1677,9 @@ function bindChart(){
 function kroppHtml(){
   let h=`<div><h1>Kropp og fremgang</h1><p class="lede">Legg inn målinger og se hvor vekten er på vei, ut fra kaloribalanse, protein og styrketrening.</p></div>${segHtml()}`;
   if(!meReady())return h+`<p class="note flag">Fyll inn kjønn, alder, høyde og vekt under Oppsett → Om deg for å få en prognose.</p>`+measHtml();
-  const scP=scenario("plan"),scL=scenario("logg");if(PSCN==="logg"&&!scL)PSCN="plan";
+  const scP=scenario("plan"),scL=scenario("logg");if(PSCN===null)PSCN=scL?"logg":"plan";if(PSCN==="logg"&&!scL)PSCN="plan";
   const sc=PSCN==="logg"?scL:scP;
-  const pr=project(sc,26),first=pr[1],protRel=sc.prot/sc.w,body=bodySorted().filter(m=>+m.w>0);
+  RETRO=retroSim();const pr=project(sc,26),first=pr[1],protRel=sc.prot/sc.w,body=bodySorted().filter(m=>+m.w>0);
   const startDs=body.length?body[body.length-1].date:iso(new Date());
   const tg=+S.me.targetW>0?+S.me.targetW:null;
   let eta="";if(tg){const dir=tg<sc.w?-1:1;const hit=pr.find(p=>p.wk>0&&(dir<0?p.w<=tg:p.w>=tg));
@@ -1694,12 +1701,13 @@ function kroppHtml(){
       <div class="stat"><span class="k">Protein</span><span class="v">${nf1(protRel)}<small> g/kg</small></span></div>
       <div class="stat"><span class="k">Styrke</span><span class="v">${nf1(sc.str)}<small> /uke</small></span></div>
     </div>
-    ${weightChart(pr,startDs)}
+    ${weightChart(pr,startDs,RETRO)}
     <div class="hz"><span class="h">Om</span><span class="h num">Vekt</span><span class="h num">Fett</span><span class="h num">Muskler m.m.</span>
       ${hz.map(p=>`<span>${p.wk} uker</span><span class="num">${nf1(p.w)} kg</span><span class="num">${sgn1(p.cumF)}</span><span class="num">${sgn1(p.cumL)}</span>`).join("")}</div>
     <span class="note">${eta?eta+" ":""}Første uke: ${sgn1(predWk)} kg.${tr!=null?` Faktisk trend fra målingene: ${sgn1(tr)} kg per uke.`:""}</span>
     ${tips.map(t=>`<span class="note flag">${t}</span>`).join("")}
     <span class="note">Grovt anslag: vedlikeholdsbehov fra Mifflin-St Jeor og aktivitetsnivå pluss trening, justert når vekten endres. Fordelingen mellom fett og muskler bygger på typiske funn for protein og styrketrening. Vekten svinger også med vann, salt og mageinnhold, så se på trenden over flere uker.</span>
+    ${calibHtml()}
     <div class="field-row"><label class="t" for="kb-target">Målvekt, kg</label><input type="number" id="kb-target" inputmode="decimal" min="35" max="250" step="0.5" value="${S.me.targetW||""}"></div>
   </div>`;
   return h+measHtml();
@@ -1769,6 +1777,57 @@ function v10Click(t){
 function v10Change(t){
   if(t.id==="kb-target"){S.me.targetW=t.value===""?"":Math.round(+t.value*10)/10;save();renderTrening();return true}
   return (t.id||"").startsWith("kb-");
+}
+
+/* ---------- Kalibrering: faktisk vedlikeholdsbehov fra logg og vekttrend ---------- */
+let ADAPT, RETRO=null;
+function adaptInfo(){
+  if(ADAPT!==undefined)return ADAPT;
+  const res={ok:false};ADAPT=res;
+  if(!meReady())return res.reason="Fyll inn Om deg.",res;
+  const since=pastDays(35).slice(-1)[0];
+  const today=iso(new Date());const ws=bodySorted().filter(m=>+m.w>0&&m.date>=since&&m.date<=today);
+  if(ws.length<3)return res.reason=`Trenger minst 3 veiinger de siste 5 ukene (har ${ws.length}).`,res;
+  const a=ws[0].date,b=ws[ws.length-1].date,span=Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+  if(span<14)return res.reason=`Veiingene må spenne over minst 14 dager (nå ${span}).`,res;
+  const days=[];for(let d=new Date(a+"T12:00:00");iso(d)<b;d.setDate(d.getDate()+1))days.push(iso(d));
+  const logged=days.map(ds=>dayTotals(dayLog(ds))).filter(t=>t.n>0);
+  if(logged.length<days.length*.7)return res.reason=`Trenger matlogg for minst 70 % av dagene mellom veiingene (har ${logged.length} av ${days.length}).`,res;
+  const intake=logged.reduce((x,t)=>x+t.kcal,0)/logged.length;
+  const train=days.reduce((x,ds)=>x+trainBurn(ds),0)/days.length;
+  const pts=ws.map(m=>({x:new Date(m.date+"T12:00:00")/864e5,y:+m.w}));
+  const mx=pts.reduce((x,p)=>x+p.x,0)/pts.length,my=pts.reduce((x,p)=>x+p.y,0)/pts.length;
+  const slope=pts.reduce((x,p)=>x+(p.x-mx)*(p.y-my),0)/pts.reduce((x,p)=>x+(p.x-mx)**2,0);
+  const model=rmrRaw(my)+train, observed=intake-slope*7700;
+  Object.assign(res,{ok:true,intake,train,slope,model,observed,days:days.length,logged:logged.length,span,offset:Math.max(-400,Math.min(400,Math.round((observed-model)/10)*10))});
+  return res;
+}
+function adaptOffset(){if(S.me.adaptive===false)return 0;const a=adaptInfo();return a.ok?a.offset:0}
+const progBurnFull = () => S.program.reduce((a,p)=>a+sessKcal(p)*p.dows.length,0)/7;
+/* Hva vekten skulle ha vært ut fra loggen, fra første veiing til i dag (uten justering). Dager uten matlogg regnes som planen. */
+function retroSim(){
+  const b=bodySorted().filter(m=>+m.w>0);if(!b.length||!meReady())return null;
+  let w=+b[0].w,loggedN=0,n=0;const pts=[{t:new Date(b[0].date+"T12:00:00").getTime(),w}];
+  const today=iso(new Date());
+  for(let d=new Date(b[0].date+"T12:00:00");iso(d)<today;d.setDate(d.getDate()+1)){
+    const ds=iso(d),t=dayTotals(dayLog(ds));n++;
+    const bal=t.n?(loggedN++,t.kcal-(rmrRaw(w)+trainBurn(ds))):S.kcal-(rmrRaw(w)+progBurnFull());
+    w+=bal/7700;
+    const nd=new Date(d);nd.setDate(nd.getDate()+1);if(n%7===0||iso(nd)===today)pts.push({t:nd.getTime(),w});
+  }
+  return n?{pts,w,n,loggedN}:null;
+}
+function calibHtml(){
+  const a=adaptInfo(),r=RETRO,last=bodySorted().filter(m=>+m.w>0).slice(-1)[0];
+  let h=`<div class="calib"><b style="font-family:var(--f-body);font-weight:600">Faktisk utvikling</b>`;
+  if(r&&last&&r.n)h+=`<span>Ut fra loggen skulle du veid <b>${nf1(r.w)} kg</b> i dag. Siste måling var <b>${nf1(+last.w)} kg</b>. ${r.loggedN} av ${r.n} dager har matlogg; resten regnes som planen.</span>`;
+  if(a.ok){
+    h+=`<span>Siste ${a.span} dager: du spiste i snitt <b>${nf(a.intake)} kcal</b>, trente bort <b>${nf(a.train)} kcal</b> per dag, og vekten endret seg <b>${sgn1(a.slope*7)} kg</b> per uke.</span>
+      <span>Det tilsvarer et faktisk vedlikehold på <b>${nf(a.observed)} kcal</b>, mot <b>${nf(a.model)} kcal</b> beregnet.</span>
+      <span>${S.me.adaptive===false?`Justering er slått av under Om deg. Med justering ville behovet blitt ${a.offset>0?"+":"−"}${nf(Math.abs(a.offset))} kcal.`:a.offset?`Kaloribehovet, menyen og prognosen er justert med <b>${a.offset>0?"+":"−"}${nf(Math.abs(a.offset))} kcal</b> per dag${Math.abs(a.offset)>=400?" (maks justering)":""}.`:"Beregningen stemmer godt med det faktiske. Ingen justering."}</span>`;
+  } else h+=`<span>Ingen justering av kaloribehovet ennå. ${a.reason||""}</span>`;
+  h+=`<span class="note">Justeringen forutsetter at du logger alt du spiser. Glemte måltider gjør at behovet ser lavere ut enn det er.</span></div>`;
+  return h;
 }
 
 /* ---------- Boot ---------- */
