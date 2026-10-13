@@ -321,6 +321,11 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .lgd i.calc{border-top:2px dotted var(--mustard)}
 .calib{background:var(--sunk);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
 .calib b{font-family:var(--f-mono);font-weight:500}
+.copylist{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px}
+.copylist .ci{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;border:0;background:transparent;border-radius:9px;padding:7px 8px;font:inherit;color:inherit}
+.copylist .ci:hover,.copylist .ci.on{background:var(--sunk)}
+.copylist .ci small{color:var(--muted);font-size:12px}
+.copylist .ci .num{font-size:13px;color:var(--muted);align-self:center}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -947,6 +952,7 @@ document.addEventListener("click",e=>{
   if(v4Click(t))return;
   if(v10Click(t))return;
   if(ownClick(t))return;
+  if(copyClick(t))return;
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
@@ -1055,7 +1061,7 @@ function skipMatrix(){
 }
 
 /* ---------- Logg ---------- */
-const SRC = {plan:"Fra menyen", manual:"Oppgitt", ai:"Anslått av Claude", db:"Grovt anslag"};
+const SRC = {copy:"Kopiert",plan:"Fra menyen", manual:"Oppgitt", ai:"Anslått av Claude", db:"Grovt anslag"};
 const LOG_TYPES = ["Mellommåltid","Kos","Frokost","Lunsj","Middag","Kveldsmat"];
 let LOGCTX = {};
 const monthOf = ds => ds.slice(0,7);
@@ -1139,6 +1145,7 @@ function openLog(key){
    <div><span class="mtype">${esc(title)} · ${fmtDay(date)}</span><h2 id="sheetTitle">Hva spiste du?</h2></div>
    ${isExtra?`<div class="field-s"><span class="t">Type</span><div class="chips">${LOG_TYPES.map((t,i)=>`<label class="chip"><input type="radio" name="l-type" value="${t}" ${(ex?ex.type===t:(key==="x:kos"?t==="Kos":i===0))?"checked":""}><span>${t}</span></label>`).join("")}</div></div>`:""}
    ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${portionChoices(recipe,key,logDay).map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon${S.scalePortion&&p===myPortion(recipe,key,logDay)?" · din":""}</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
+   <div class="field-s"><div class="actions"><button type="button" class="btn sm" id="l-copy">${ICON.copy}Kopier fra tidligere</button></div><div id="l-copylist" class="copylist" hidden></div></div>
    <div class="field-s"><label class="t" for="l-desc">Beskrivelse</label><textarea id="l-desc" class="txt" rows="2" placeholder="F.eks. biff med pommes frites og bearnaise, ett glass rødvin">${esc(ex&&ex.src!=="plan"?(ex.desc||ex.name||""):"")}</textarea></div>
    <div class="photo-row" id="photoRow" ${SAMPLE&&SAMPLE_IMG?"":"hidden"}><label class="btn" for="l-photo">${ICON.camera}Ta eller velg bilde</label><input type="file" id="l-photo" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" class="sr"><img id="l-prev" alt="Bilde av måltidet" hidden></div>
    <div class="actions"><button class="btn" id="l-est">${ICON.spark}Anslå næringsinnhold</button></div>
@@ -2035,6 +2042,47 @@ function ownClick(t){
   if(d.owndel!==undefined){deleteOwn(d.owndel);return true}
   if(t.id==="od-est"){ownEstimate();return true}
   if(t.id==="od-save"){saveOwn();return true}
+  return false;
+}
+
+/* ---------- Kopier måltid fra tidligere dager ---------- */
+let COPYSEL=null;
+const SHARES=[.25,.5,.75,1,1.5];
+const shareLabel = f => ({.25:"¼",.5:"½",.75:"¾",1:"hele",1.5:"1½"})[f]||String(f);
+function copyCandidates(){
+  const out=[],cur=LOGCTX||{};
+  [iso(new Date()),...pastDays(14)].forEach(ds=>{const dl=dayLog(ds);if(!dl)return;
+    Object.entries(dl.slots||{}).forEach(([m,e])=>{if(!(ds===cur.ds&&m===cur.key))out.push({ds,e,lbl:MEAL_LABEL[m]})});
+    (dl.extra||[]).forEach((e,i)=>{if(!(ds===cur.ds&&("x:"+i)===cur.key))out.push({ds,e,lbl:e.type||"Mellommåltid"})})});
+  return out.filter(x=>+x.e.kcal>0).slice(0,40);
+}
+async function showCopyList(){
+  const box=$("#l-copylist");if(!box)return;
+  if(!box.hidden){box.hidden=true;return}
+  if(cloud.db){const ms=new Set([iso(new Date()),...pastDays(14)].map(monthOf));for(const m of ms)await loadMonth(m)}
+  const c=copyCandidates();COPYSEL=null;
+  box.innerHTML=c.length?c.map((x,i)=>`<button type="button" class="ci" data-lcopy="${i}"><span>${esc(x.e.name)}<br><small>${cap(fmtDay(new Date(x.ds+"T12:00:00")))} · ${esc(x.lbl)}</small></span><span class="num">${nf(x.e.kcal)} kcal</span></button>`).join("")
+    +`<div id="l-share" hidden><span class="hint">Hvor mye spiste du?</span><div class="chips">${SHARES.map(f=>`<button type="button" class="chip-btn" data-lshare="${f}">${shareLabel(f)}</button>`).join("")}</div></div>`
+    :'<p class="note" style="margin:4px">Ingen loggede måltider de siste 14 dagene.</p>';
+  box._c=c;box.hidden=false;
+}
+function applyCopy(f){
+  const x=COPYSEL;if(!x)return;const e=x.e,base=String(e.name).replace(/\s*\((¼|½|¾|1½|hele)[^)]*\)\s*$/,"");
+  setNutr({kcal:e.kcal*f,p:(+e.p||0)*f,f:(+e.f||0)*f,k:(+e.k||0)*f});
+  $("#l-desc").value=base+(f!==1?` (${shareLabel(f)} porsjon)`:"");
+  LOGCTX.src="copy";LOGCTX.aiName=base;
+  LOGCTX.note=`Kopiert fra ${MEAL_LABEL[x.key]||x.lbl.toLowerCase()} ${fmtDay(new Date(x.ds+"T12:00:00"))}${f!==1?`: ${shareLabel(f)} av ${nf(e.kcal)} kcal`:""}.`;
+  document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));
+  document.querySelectorAll("[data-lshare]").forEach(b=>b.classList.toggle("on",+b.dataset.lshare===f));
+  const o=$("#l-estout");o.className="note estout";o.textContent=LOGCTX.note;
+}
+function copyClick(t){
+  const d=t.dataset;
+  if(t.id==="l-copy"){showCopyList();return true}
+  if(d.lcopy!==undefined){const box=$("#l-copylist");COPYSEL=box._c[+d.lcopy];
+    box.querySelectorAll(".ci").forEach(b=>b.classList.toggle("on",b===t.closest(".ci")));
+    const sh=$("#l-share");sh.hidden=false;t.closest(".ci").after(sh);applyCopy(1);return true}
+  if(d.lshare!==undefined){applyCopy(+d.lshare);return true}
   return false;
 }
 
