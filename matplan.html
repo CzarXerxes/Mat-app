@@ -546,16 +546,16 @@ function allowed(r,s){
   if(s.allergies.egg&&f.includes("e"))return false;
   return true;
 }
-function costPer(r){return r.i.reduce((sum,[id,a])=>sum+a*unit(ING[id]),0)}
+function costPer(r){if(r.own)return r.ppp||0;return r.i.reduce((sum,[id,a])=>sum+a*unit(ING[id]),0)}
 const unit = g => g.pp/g.pk;
 const fresh = g => g.h!==undefined && g.h<=10;
 const short = g => g.sn || g.n.split(/[ ,]/)[0].toLowerCase();
-function kcal(r){const[p,f,k]=r.mac;return p*4+f*9+k*4}
+function kcal(r){if(r.kcalOverride)return r.kcalOverride;const[p,f,k]=r.mac;return p*4+f*9+k*4}
 function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*100,k:k*4/e*100}}
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[]};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[],ownDishes:[],ownPlaced:{}};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -618,7 +618,7 @@ function simulate(slots){
 }
 
 function score(r,meal,used,prevPr,inv,day){
-  const prof=PROFILES[S.profile],sb=slotBudget(meal),tp=totalPortions(r,meal,day),full=costPer(r)*tp;
+  const prof=planProfile(),sb=slotBudget(meal),tp=totalPortions(r,meal,day),full=costPer(r)*tp;
   let c=full,bonus=0;
   if(S.smartRest&&inv){const q=quote(inv,r,day,tp);c=q.marg*.6+full*.4;bonus=q.restVal/sb*1.5-q.newLeft/sb*2}
   const costPen=Math.max(0,c-sb)/sb*2+c/sb*.3;
@@ -627,12 +627,14 @@ function score(r,meal,used,prevPr,inv,day){
   return macroDist(r,prof)*3+costPen+rep+same-bonus+portionPen(r,meal,day);
 }
 function generate(seed){
+  PPROF=null;
   const rand=rng(seed);const used={};const slots=[];let prevPr=null;const inv=newInv();
   for(let d=0;d<S.days;d++){
     expire(inv,d);applySnacks(inv,d);
     const date=addDays(S.start,d);const maxT=slotMaxTime(date);
     for(const meal of MEALS){if(!S.meals[meal])continue;
       if(skips[iso(date)+"|"+meal]){slots.push({d,meal,id:null,skip:true});continue}
+      {const op=S.ownPlaced[iso(date)+"|"+meal];if(op&&RBY["own:"+op]){slots.push({d,meal,id:"own:"+op,own:true});used["own:"+op]=1;continue}}
       const{list,relaxed}=candidates(meal,maxT);
       if(!list.length){slots.push({d,meal,id:null});continue}
       const ranked=list.map(r=>({r,s:score(r,meal,used,prevPr,inv,d)})).sort((a,b)=>a.s-b.s);
@@ -649,7 +651,7 @@ function generate(seed){
 }
 /* Lokal forbedring: bytt enkeltretter når det gir lavere sum av handlekurv, svinn og avvik fra profil/variasjon (alt i kroner) */
 function objective(slots){
-  const sim=simulate(slots),prof=PROFILES[S.profile];let pen=0;const seen={};let prev=null;
+  const sim=simulate(slots),prof=planProfile();let pen=0;const seen={};let prev=null;
   slots.forEach(s=>{if(!s.id)return;const r=RBY[s.id],sb=slotBudget(s.meal);
     pen+=macroDist(r,prof)*1.5*sb;
     if(seen[s.id])pen+=sb*(s.meal==="middag"?1.3:.25);seen[s.id]=1;
@@ -659,7 +661,7 @@ function objective(slots){
 function improve(slots){
   let base=objective(slots);
   for(let pass=0;pass<2;pass++){let changed=false;
-    slots.forEach(s=>{if(!s.id)return;const cur=s.id;
+    slots.forEach(s=>{if(!s.id||s.own)return;const cur=s.id;
       const{list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
       let best=cur,bestV=base;
       for(const c of list){if(c.id===cur)continue;s.id=c.id;const v=objective(slots);if(v<bestV-4){bestV=v;best=c.id}}
@@ -672,7 +674,7 @@ function repairBudget(slots){
     const base=simulate(slots).cost;if(base<=S.budget)break;
     const used={};slots.forEach(s=>{if(s.id)used[s.id]=(used[s.id]||0)+1});
     let best=null;
-    slots.forEach((s,idx)=>{if(!s.id)return;const cur=s.id;
+    slots.forEach((s,idx)=>{if(!s.id||s.own)return;const cur=s.id;
       const{list}=candidates(s.meal,slotMaxTime(addDays(S.start,s.d)));
       for(const c of list){if(c.id===cur||costPer(c)>=costPer(RBY[cur]))continue;
         s.id=c.id;const save=base-simulate(slots).cost;s.id=cur;if(save<=.5)continue;
@@ -715,7 +717,7 @@ function renderMeny(){
   const el=$("#v-meny");
   const first=addDays(S.start,0), last=addDays(S.start,S.days-1);
   const filled=P.slots.filter(s=>s.id);
-  const cost=SIM.cost;
+  const cost=SIM.cost+ownCost();
   const perPD=cost/S.persons/S.days;
   let E=0,pP=0,pF=0,pK=0; filled.forEach(s=>{const r=RBY[s.id],q=myPortion(r,s.meal,s.d);E+=kcal(r)*q;pP+=r.mac[0]*4*q;pF+=r.mac[1]*9*q;pK+=r.mac[2]*4*q});
   const kcalDay=E/S.days; const mp={p:pP/E*100||0,f:pF/E*100||0,k:pK/E*100||0};
@@ -759,7 +761,7 @@ function renderMeny(){
     </div>
     ${relaxed||missing?`<span class="note flag">${missing?missing+" måltid mangler oppskrift som passer kostholdet. ":""}${relaxed?relaxed+" måltid tar lengre tid enn tidsgrensen.":""}</span>`:""}
     ${skipped?`<span class="note">${skipped} ${skipped===1?"måltid er":"måltider er"} tatt ut av menyen og handlelisten. Endre det under Oppsett eller ved å trykke på måltidet.</span>`:""}
-    <div class="actions"><button class="btn" id="reroll">${ICON.dice}Ny variant</button><button class="btn" data-go="liste">Se handleliste</button></div>
+    ${ownSummary()}<div class="actions"><button class="btn" id="reroll">${ICON.dice}Ny variant</button><button class="btn" data-ownnew="">${ICON.plus}Egen rett</button><button class="btn" data-go="liste">Se handleliste</button></div>
   </div>`;
   for(let d=0;d<S.days;d++){
     const date=addDays(S.start,d); const wk=date.getDay()===0||date.getDay()===6;
@@ -773,9 +775,9 @@ function renderMeny(){
       if(!s.id){h+=`<div class="empty-slot">${MEAL_LABEL[s.meal]}: ingen oppskrift passer valgene dine.</div>`;return}
       const r=RBY[s.id]; const info=SIM.info[s.idx];
       const rest=info&&info.rest.length?`<span class="rest">${ICON.leaf}Bruker rest: ${info.rest.map(id=>short(ING[id])).join(", ")}</span>`:"";
-      h+=`<div class="meal"><button class="meal-main" data-open="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">${esc(r.n)}</span>
+      h+=`<div class="meal"><button class="meal-main" data-open="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">${esc(r.n)}${r.own?` <span class="srctag">${esc(r.src||"Egen rett")}</span>`:""}</span>
         <span class="mmeta"><span class="${s.relaxed?"flag":""}">${ICON.clock}${r.t} min</span><span class="num">${kr(costPer(r)*totalPortions(r,s.meal,s.d))}</span><span class="num">${S.scalePortion?`Din porsjon ${portionLabel(myPortion(r,s.meal,s.d))} · ${nf(kcal(r)*myPortion(r,s.meal,s.d))} kcal`:nf(kcal(r))+" kcal"}</span><span class="num">${r.mac[0]} g protein</span></span>${rest}${loggedTag(s)}</button>
-        <button class="swap" data-swap="${s.idx}" aria-label="Bytt ${esc(r.n)}" title="Bytt rett">${ICON.swap}</button></div>`;
+        ${r.own?`<button class="swap" data-ownrm="${s.idx}" aria-label="Fjern ${esc(r.n)} fra menyen" title="Fjern fra menyen">×</button>`:`<button class="swap" data-swap="${s.idx}" aria-label="Bytt ${esc(r.n)}" title="Bytt rett">${ICON.swap}</button>`}</div>`;
     });
     h+=`</div></div>`;
   }
@@ -786,7 +788,7 @@ function renderMeny(){
 /* ---------- Render: Handleliste ---------- */
 function renderListe(){
   const el=$("#v-liste"); const {groups,pantry}=shoppingList();
-  const items=Object.values(groups).flat(); const total=items.reduce((a,i)=>a+i.cost,0);
+  const items=Object.values(groups).flat(); const total=items.reduce((a,i)=>a+i.cost,0)+ownCost();
   const done=items.filter(i=>checked[i.id]).length;
   let h=`<div><h1>Handleliste</h1><p class="lede">${items.length} varer · ${done} lagt i kurven</p></div>
   <div class="actions"><button class="btn" id="copyList">${ICON.copy}Kopier liste</button>${done?`<button class="btn" id="clearChecks">Fjern avkrysninger</button>`:""}</div>
@@ -798,6 +800,7 @@ function renderListe(){
     });
     h+=`</div>`;
   });
+  h+=ownShopHtml();
   h+=`<div class="total"><span>Estimert sum</span><span class="big">${kr(total)}</span></div></div>`;
 
   const waste=Object.entries(SIM.wasteItems).filter(([,a])=>a>1e-6).map(([id,a])=>({g:ING[id],a,v:a*unit(ING[id])})).sort((x,y)=>y.v-x.v);
@@ -849,6 +852,7 @@ function renderOppsett(){
       <label class="chip"><input type="checkbox" id="f-al-egg" data-al="egg" ${S.allergies.egg?"checked":""}><span>Uten egg</span></label></div>
       <span class="hint" id="h-avail">${avail} av ${R.length} oppskrifter passer valgene dine.</span></div>
   </div>
+  ${ownLibCard()}
   <div class="card"><div class="field"><span class="t">Måltider som ikke skal planlegges</span><span class="hint">Trykk på et måltid for å ta det ut av menyen, for eksempel middag på restaurant eller frokost på en konferanse. Trykk igjen for å planlegge det likevel. Gjelder menyen som er laget nå.</span>${skipMatrix()}</div></div>
   <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>`;
   el.innerHTML=h;
@@ -857,6 +861,7 @@ function stepper(key,val,lbl){return`<div class="stepper" role="group" aria-labe
 
 /* ---------- Sheet ---------- */
 function openRecipe(idx){
+  if(P.slots[idx]&&P.slots[idx].own)return openOwnSlot(idx);
   const s=P.slots[idx]; const r=RBY[s.id]; const date=addDays(S.start,s.d);
   const m=macroPct(r); const info=SIM.info[idx]||{rest:[]};
   $("#sheet").innerHTML=`<span class="grab"></span>
@@ -868,7 +873,7 @@ function openRecipe(idx){
    <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*totalPortions(r,s.meal,s.d))}</span></li>`}).join("")}</ul>
    <h3>Slik gjør du</h3>
    <ol class="steps">${r.s.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
-   <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
+   <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn" data-ownpick="${idx}">${ICON.plus}Bytt til egen rett</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
   $("#scrim").hidden=false; $("#closeSheet").focus();
 }
 function fmtRecipeAmt(g,a){
@@ -900,7 +905,7 @@ function setTab(t){tab=t;["meny","liste","logg","trening","oppsett"].forEach(x=>
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
-  ADAPT=undefined;syncKcal();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
+  ADAPT=undefined;syncKcal();PPROF=null;WADJ=weekAdj();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
 }
 
 document.addEventListener("click",e=>{
@@ -923,6 +928,7 @@ document.addEventListener("click",e=>{
   if(t.id==="l-save")return saveLogEntry();
   if(v4Click(t))return;
   if(v10Click(t))return;
+  if(ownClick(t))return;
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
@@ -933,6 +939,7 @@ $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()})
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
 document.addEventListener("change",e=>{
   const t=e.target;
+  if((t.id||"").startsWith("od-")||t.name==="od-src")return;
   if(v10Change(t))return;
   if(v4Change(t))return;
   if(t.id==="l-photo"){pickPhoto(t);return}
@@ -950,7 +957,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if((t.id||"").startsWith("kb-"))return;
+  if((t.id||"").startsWith("kb-")||(t.id||"").startsWith("od-"))return;
   if(v4Input(t))return;
   if(["l-kcal","l-p","l-f","l-k"].includes(t.id)){LOGCTX.src="manual";document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));return}
   if(t.id==="l-desc"||t.id==="sk-note")return;
@@ -1272,6 +1279,9 @@ function normalizeS(){
   if(!Array.isArray(S.snacks))S.snacks=DEFAULTS.snacks.map(x=>({...x}));
   if(!Array.isArray(S.program))S.program=[];
   if(!Array.isArray(S.body))S.body=[];
+  if(!Array.isArray(S.ownDishes))S.ownDishes=[];
+  if(!S.ownPlaced||typeof S.ownPlaced!=="object")S.ownPlaced={};
+  registerOwn();
   if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
   if(S.scalePortion==null)S.scalePortion=true;
 }
@@ -1466,7 +1476,7 @@ function actSelect(id,val){return`<select class="sel" id="${id}">${Object.entrie
 function intChips(name,val){return`<div class="chips">${INTS.map((n,i)=>`<label class="chip"><input type="radio" name="${name}" value="${i}" ${val===i?"checked":""}><span>${n}</span></label>`).join("")}</div>`}
 let TCTX={};
 function openProgram(id){
-  const p=id==="new"?{id:"p"+Date.now().toString(36),dows:[],act:"lop",min:45,int:1,note:""}:S.program.find(x=>x.id===id);if(!p)return;
+  const p=id==="new"?{id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),dows:[],act:"lop",min:45,int:1,note:""}:S.program.find(x=>x.id===id);if(!p)return;
   TCTX={kind:"prog",isNew:id==="new",p:{...p,dows:[...p.dows]}};
   $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Treningsprogram</span><h2 id="sheetTitle">${id==="new"?"Ny økt i programmet":"Endre økt"}</h2></div>
    <div class="field-s"><span class="t">Dager</span><div class="dows">${DOWS.map((n,i)=>`<label class="chip"><input type="checkbox" name="tp-dow" value="${i+1}" ${p.dows.includes(i+1)?"checked":""}><span>${n}</span></label>`).join("")}</div></div>
@@ -1571,8 +1581,8 @@ function v4Click(t){
 function planKcal(d){return S.kcal}
 function avgPlanKcal(){let t=0;for(let d=0;d<S.days;d++)t+=planKcal(d);return t/S.days}
 function myPortion(r,meal,d){
-  if(!S.scalePortion||!r)return 1;
-  const tgt=planKcal(d)*(+S.split[meal]||0)/100;if(!(tgt>0))return 1;
+  if(!r)return 1;if(r.own&&r.fixed)return r.myFix;if(!S.scalePortion)return 1;
+  const tgt=planKcal(d)*(+S.split[meal]||0)/100*(1+(r.own?0:WADJ));if(!(tgt>0))return 1;
   return Math.min(2.5,Math.max(.5,Math.round(tgt/kcal(r)*10)/10));
 }
 const totalPortions = (r,meal,d) => myPortion(r,meal,d)+Math.max(0,S.persons-1);
@@ -1739,7 +1749,7 @@ function measHtml(){
 }
 let BCTX=null;
 function openBody(id){
-  const m=id==="new"?{id:"m"+Date.now().toString(36),date:iso(new Date()),w:"",waist:"",neck:"",hip:"",bf:"",note:""}:S.body.find(x=>x.id===id);if(!m)return;
+  const m=id==="new"?{id:"m"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:iso(new Date()),w:"",waist:"",neck:"",hip:"",bf:"",note:""}:S.body.find(x=>x.id===id);if(!m)return;
   BCTX={isNew:id==="new",id:m.id};
   const f=(id,lbl,v,step,hint)=>`<div class="field-s"><label class="t" for="${id}">${lbl}</label><input type="number" class="txt" id="${id}" inputmode="decimal" min="0" step="${step}" value="${v??""}">${hint?`<span class="hint">${hint}</span>`:""}</div>`;
   $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Kropp</span><h2 id="sheetTitle">${id==="new"?"Ny måling":"Endre måling"}</h2></div>
@@ -1828,6 +1838,182 @@ function calibHtml(){
   } else h+=`<span>Ingen justering av kaloribehovet ennå. ${a.reason||""}</span>`;
   h+=`<span class="note">Justeringen forutsetter at du logger alt du spiser. Glemte måltider gjør at behovet ser lavere ut enn det er.</span></div>`;
   return h;
+}
+
+/* ---------- Egne retter (matkasse, kokebok, nettside) ---------- */
+let PPROF=null, WADJ=0, OCTX={};
+const OWN_SRC=["Matkasse","Kokebok","Nettside","Annet"];
+function registerOwn(){
+  Object.keys(RBY).forEach(k=>{if(k.startsWith("own:"))delete RBY[k]});
+  const prof=PROFILES[S.profile]||PROFILES.balansert;
+  (S.ownDishes||[]).forEach(o=>{
+    let mac=[+o.p||0,+o.f||0,+o.k||0];const kc=+o.kcal||0;
+    if(!(mac[0]+mac[1]+mac[2])&&kc)mac=[kc*prof.p/400,kc*prof.f/900,kc*prof.k/400];
+    RBY["own:"+o.id]={id:"own:"+o.id,own:true,n:o.n,src:o.src,m:o.meal,t:+o.t||0,pr:"own",mac,kcalOverride:kc||null,macEst:!(+o.p||+o.f||+o.k),i:[],s:[],desc:o.desc||"",fixed:!!o.fixed,myFix:+o.myFix||1,ppp:+o.ppp||0,shop:!!o.shop,serv:+o.serv||1};
+  });
+}
+const ownSlots = () => P&&P.slots?P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.own&&RBY[s.id]):[];
+function ownCost(){return ownSlots().reduce((a,s)=>a+costPer(RBY[s.id])*totalPortions(RBY[s.id],s.meal,s.d),0)}
+/* Ukejustering: faste porsjoner (f.eks. matkasse) som gir mer eller mindre enn målet, veies opp i de andre porsjonene. */
+function weekAdj(){
+  if(!S.scalePortion||!P)return 0;let diff=0,flex=0;
+  P.slots.forEach(s=>{if(!s.id)return;const r=RBY[s.id];if(!r)return;const tgt=S.kcal*(+S.split[s.meal]||0)/100;
+    if(r.own&&r.fixed)diff+=kcal(r)*r.myFix-tgt;else flex+=tgt});
+  return flex?Math.max(-.25,Math.min(.25,-diff/flex)):0;
+}
+/* Ernæringsmål for rettene planleggeren velger: justert for det de egne rettene gir. */
+function planProfile(){
+  if(PPROF)return PPROF;const base=PROFILES[S.profile];PPROF=base;
+  let E=0,pE=0,fE=0,kE=0,rest=0;
+  for(let d=0;d<S.days;d++){const ds=iso(addDays(S.start,d));
+    MEALS.forEach(m=>{if(!S.meals[m]||skips[ds+"|"+m])return;const tgt=S.kcal*(+S.split[m]||0)/100;const op=S.ownPlaced[ds+"|"+m];const r=op&&RBY["own:"+op];
+      if(r){const q=myPortion(r,m,d),e=kcal(r)*q;E+=e;pE+=r.mac[0]*4*q;fE+=r.mac[1]*9*q;kE+=r.mac[2]*4*q}else rest+=tgt})}
+  if(!E||!rest)return PPROF;
+  const fix=(t,own)=>Math.max(10,Math.min(60,(t/100*(E+rest)-own)/rest*100));
+  let p=fix(base.p,pE),f=fix(base.f,fE),k=fix(base.k,kE);const sum=p+f+k;
+  PPROF={...base,p:p/sum*100,f:f/sum*100,k:k/sum*100};return PPROF;
+}
+function ownSummary(){
+  const os=ownSlots();if(!os.length)return"";
+  let e=0,tg=0;os.forEach(s=>{const r=RBY[s.id];e+=kcal(r)*myPortion(r,s.meal,s.d);tg+=S.kcal*(+S.split[s.meal]||0)/100});
+  const pp=planProfile(),base=PROFILES[S.profile];
+  const parts=[`${os.length} ${os.length===1?"egen rett":"egne retter"} gir ${nf(e)} kcal for deg, mot ${nf(tg)} kcal satt av.`];
+  if(Math.abs(WADJ)>=.01)parts.push(`De andre porsjonene er justert ${WADJ>0?"opp":"ned"} ${Math.round(Math.abs(WADJ)*100)} % så uka går opp.`);
+  if(Math.abs(pp.p-base.p)>=2)parts.push(`Resten av menyen velges med ${Math.round(pp.p)} % protein (mot ${base.p} %) for å veie opp.`);
+  return`<span class="note">${parts.join(" ")}</span>`;
+}
+function ownShopHtml(){
+  const by={};ownSlots().forEach(s=>{const r=RBY[s.id];if(!r.shop)return;(by[s.id]=by[s.id]||{r,n:0}).n+=totalPortions(r,s.meal,s.d)});
+  const ks=Object.keys(by);if(!ks.length)return"";
+  let h=`<div class="group"><h4>Til egne retter</h4>`;
+  ks.forEach(k=>{const {r,n}=by[k];const lines=(r.desc||"").split(/\n|;/).map(x=>x.trim()).filter(Boolean);
+    h+=`<p class="note" style="margin:8px 0 2px"><b>${esc(r.n)}</b> · du trenger ${portionLabel(Math.round(n*10)/10)} porsjoner, oppskriften gir ${r.serv}${r.ppp?` · ca. ${kr(r.ppp*n)}`:""}</p>`;
+    if(!lines.length)h+=`<p class="note" style="margin:0">Ingen ingredienser lagt inn. Legg dem inn under Oppsett → Egne retter.</p>`;
+    lines.forEach((ln,i)=>{const key=k+":"+i;h+=`<label class="item"><input type="checkbox" data-check="${esc(key)}" ${checked[key]?"checked":""}><span class="box">${ICON.check}</span><span class="iname">${esc(ln)}</span><span></span><span></span></label>`});});
+  return h+`<p class="note" style="margin:6px 0 0">Mengdene står slik du skrev dem i oppskriften. Gang opp eller ned etter antall porsjoner du trenger.</p></div>`;
+}
+function ownLibCard(){
+  const L=S.ownDishes||[];
+  return`<div class="card"><div class="field"><span class="t">Egne retter</span><span class="hint">Retter fra matkasse, kokebok eller nettsider. Legg dem inn i menyen fra et måltid («Bytt til egen rett») eller med «Egen rett» øverst i menyen.</span>
+    ${L.length?L.map(o=>{const n=Object.values(S.ownPlaced).filter(x=>x===o.id).length;return`<div class="prog"><div><b>${esc(o.n)}</b><div class="sess-meta">${esc(o.src||"Egen rett")} · ${nf(+o.kcal||0)} kcal per porsjon${o.fixed?" · fast porsjon":""}${n?` · ${n} ${n===1?"gang":"ganger"} i menyen`:""}</div></div><div class="actions"><button class="btn sm" data-ownedit="${o.id}">Endre</button></div></div>`}).join(""):'<span class="hint">Ingen egne retter ennå.</span>'}
+    <button class="btn" data-ownnew="">${ICON.plus}Ny egen rett</button></div></div>`;
+}
+function openOwnSlot(idx){
+  const s=P.slots[idx],r=RBY[s.id],date=addDays(S.start,s.d),q=myPortion(r,s.meal,s.d),m=macroPct(r);
+  $("#sheet").innerHTML=`<span class="grab"></span>
+   <div><span class="mtype">${MEAL_LABEL[s.meal]} · ${fmtDay(date)} · ${esc(r.src||"Egen rett")}</span><h2 id="sheetTitle">${esc(r.n)}</h2></div>
+   <div class="facts"><div class="fact"><b>${r.t||"–"}</b><span>minutter</span></div><div class="fact"><b>${nf(costPer(r)*totalPortions(r,s.meal,s.d))}</b><span>kr totalt</span></div><div class="fact"><b>${nf(kcal(r)*q)}</b><span>kcal for deg</span></div><div class="fact"><b>${nf(r.mac[0]*q)} g</b><span>protein for deg</span></div></div>
+   <div class="meter"><div class="track"><div class="seg c-p" style="width:${m.p}%"></div><div class="seg c-f" style="width:${m.f}%"></div><div class="seg c-k" style="width:${m.k}%"></div></div>
+   <div class="legend"><span><i class="dot c-p"></i>Protein ${nf(r.mac[0])} g</span><span><i class="dot c-f"></i>Fett ${nf(r.mac[1])} g</span><span><i class="dot c-k"></i>Karbo ${nf(r.mac[2])} g</span><span>per porsjon${r.macEst?", fordeling anslått":""}</span></div></div>
+   <p class="note" style="margin:0">${r.fixed?`Fast porsjon: du spiser ${portionLabel(r.myFix)} porsjon. De andre måltidene i uka justeres for å veie opp.`:`Din porsjon er ${portionLabel(q)}, tilpasset dagens mål.`}</p>
+   ${r.desc?`<h3>Ingredienser og notater</h3><p style="margin:0;white-space:pre-line">${esc(r.desc)}</p>`:""}
+   <div class="actions"><button class="btn" data-ownedit="${r.id.slice(4)}" data-idx="${idx}">Endre retten</button><button class="btn" data-ownrm="${idx}" data-close>Fjern fra menyen</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
+  $("#scrim").hidden=false;
+}
+function openOwnPick(idx){
+  const s=P.slots[idx];OCTX={idx};
+  const L=[...(S.ownDishes||[])].sort((a,b)=>(b.meal===s.meal)-(a.meal===s.meal));
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">${MEAL_LABEL[s.meal]} · ${fmtDay(addDays(S.start,s.d))}</span><h2 id="sheetTitle">Velg egen rett</h2></div>
+   ${L.length?L.map(o=>`<button class="btn" style="justify-content:space-between" data-ownplace="${o.id}"><span>${esc(o.n)}</span><span class="note">${esc(o.src||"")} · ${nf(+o.kcal||0)} kcal</span></button>`).join(""):'<p class="note">Du har ingen egne retter ennå.</p>'}
+   <div class="actions"><button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" data-ownnew="${idx}">${ICON.plus}Ny egen rett</button></div>`;
+  $("#scrim").hidden=false;
+}
+function placeOwn(idx,dishId){
+  const s=P.slots[idx];if(!s)return;const key=slotKey(s);
+  delete skips[key];S.ownPlaced[key]=dishId;s.skip=false;s.id="own:"+dishId;s.own=true;
+  save();renderAll();toast("Lagt inn i menyen");
+}
+function removeOwn(idx){
+  const s=P.slots[idx];if(!s)return;delete S.ownPlaced[slotKey(s)];s.own=false;s.id=null;s.id=bestFor(idx);
+  save();renderAll();toast("Egen rett fjernet. Menyen har valgt en ny rett.");
+}
+function openOwnEdit(dishId,idx){
+  const o=dishId?S.ownDishes.find(x=>x.id===dishId):{id:"o"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:"",src:"Matkasse",meal:idx!=null&&P.slots[idx]?P.slots[idx].meal:"middag",serv:2,desc:"",kcal:"",p:"",f:"",k:"",t:"",ppp:"",fixed:true,myFix:1,shop:false};
+  if(!o)return;OCTX={dishId:o.id,isNew:!dishId,idx:idx??null};
+  const v=x=>x??"";
+  const daySel=idx==null&&!dishId?`<div class="field-s"><span class="t">Når</span><div class="inline-add" style="grid-template-columns:1fr 1fr"><select class="sel" id="od-day">${Array.from({length:S.days},(_,d)=>`<option value="${d}">${cap(fmtDay(addDays(S.start,d)))}</option>`).join("")}</select><select class="sel" id="od-meal">${MEALS.filter(m=>S.meals[m]).map(m=>`<option value="${m}" ${o.meal===m?"selected":""}>${MEAL_LABEL[m]}</option>`).join("")}</select></div></div>`:"";
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Egen rett</span><h2 id="sheetTitle">${dishId?"Endre egen rett":"Ny egen rett"}</h2></div>
+   <div class="field-s"><label class="t" for="od-n">Navn</label><input type="text" class="txt" id="od-n" maxlength="60" placeholder="F.eks. Thaisuppe med kylling" value="${esc(o.n)}"></div>
+   <div class="field-s"><span class="t">Fra</span><div class="chips">${OWN_SRC.map(x=>`<label class="chip"><input type="radio" name="od-src" value="${x}" ${o.src===x?"checked":""}><span>${x}</span></label>`).join("")}</div></div>
+   ${daySel}
+   <div class="field-s"><label class="t" for="od-desc">Ingredienser og notater</label><textarea class="txt" id="od-desc" rows="4" placeholder="Én ingrediens per linje, f.eks.&#10;400 g kyllingfilet&#10;1 boks kokosmelk">${esc(o.desc||"")}</textarea><span class="hint">Brukes til næringsanslaget og til handlelisten hvis du trenger å handle inn.</span></div>
+   <div class="field-row"><label class="t" for="od-serv">Porsjoner i oppskriften</label><input type="number" id="od-serv" inputmode="numeric" min="1" max="12" value="${v(o.serv)}"></div>
+   <div class="actions"><button class="btn" id="od-est">${ICON.spark}Anslå næringsinnhold</button></div>
+   <p class="note estout" id="od-out">${SAMPLE?"Claude anslår kalorier og næringsstoffer per porsjon ut fra navn og ingredienser. Står næringsinnholdet på matkassen eller i boka, kan du skrive det inn selv.":"Skriv inn næringsinnholdet per porsjon, f.eks. fra matkassen eller kokeboka."}</p>
+   <div class="nutr">
+     <label for="od-kcal">Kcal<input type="number" id="od-kcal" inputmode="numeric" min="0" value="${v(o.kcal)}"></label>
+     <label for="od-p">Protein, g<input type="number" id="od-p" inputmode="numeric" min="0" value="${v(o.p)}"></label>
+     <label for="od-f">Fett, g<input type="number" id="od-f" inputmode="numeric" min="0" value="${v(o.f)}"></label>
+     <label for="od-k">Karbo, g<input type="number" id="od-k" inputmode="numeric" min="0" value="${v(o.k)}"></label></div>
+   <span class="hint">Per porsjon.</span>
+   <div class="field-row"><label class="t" for="od-t">Tid, minutter</label><input type="number" id="od-t" inputmode="numeric" min="0" value="${v(o.t)}"></div>
+   <div class="field-row"><label class="t" for="od-ppp">Pris per porsjon, kr</label><input type="number" id="od-ppp" inputmode="numeric" min="0" value="${v(o.ppp)}"></div>
+   <div class="chips"><label class="chip"><input type="checkbox" id="od-fixed" ${o.fixed?"checked":""}><span>Fast porsjon</span></label><label class="chip"><input type="checkbox" id="od-shop" ${o.shop?"checked":""}><span>Trenger innkjøp</span></label></div>
+   <div class="field-row"><label class="t" for="od-myfix">Din porsjon ved fast porsjon</label><input type="number" id="od-myfix" inputmode="decimal" min="0.25" max="3" step="0.25" value="${v(o.myFix)}"></div>
+   <span class="hint">Fast porsjon passer for matkasser der porsjonene er ferdig delt. Da justeres de andre måltidene i uka i stedet. Ellers tilpasses porsjonen din som for andre retter.</span>
+   <div class="actions">${dishId?`<button class="btn" data-owndel="${o.id}">Slett retten</button>`:""}<button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="od-save">${dishId?"Lagre":"Lagre og legg i menyen"}</button></div>`;
+  $("#scrim").hidden=false;
+}
+async function ownEstimate(){
+  const n=$("#od-n").value.trim(),desc=$("#od-desc").value.trim(),serv=Math.max(1,+$("#od-serv").value||1),out=$("#od-out"),btn=$("#od-est");
+  out.className="note estout";
+  if(!n&&!desc){out.textContent="Skriv navn eller ingredienser først.";out.classList.add("err");return}
+  const fill=o=>{["kcal","p","f","k"].forEach(k=>{$("#od-"+k).value=Math.round(o[k])})};
+  if(SAMPLE){
+    btn.disabled=true;out.textContent="Anslår næringsinnhold …";
+    try{
+      const r=await SAMPLE.json(`Du er en nøktern ernæringsassistent i en norsk matplanleggingsapp. Anslå næringsinnhold per porsjon for en rett.
+Rett: ${n||"(uten navn)"}
+Oppskriften gir ${serv} porsjoner.
+Ingredienser og notater: ${desc||"(ikke oppgitt, bruk vanlige norske oppskrifter for denne retten)"}
+Svar bare med ett JSON-objekt: {"kcal":650,"protein":35,"fett":25,"karbo":60,"tid":30,"antakelser":"én kort setning"}`,{modelTier:"default"});
+      const v=x=>Math.max(0,Number(x)||0);if(!(v(r.kcal)>0))throw{code:"invalid_json"};
+      fill({kcal:v(r.kcal),p:v(r.protein),f:v(r.fett),k:v(r.karbo)});if(!$("#od-t").value&&v(r.tid))$("#od-t").value=Math.round(v(r.tid));
+      out.textContent="Anslått av Claude per porsjon. "+(r.antakelser?String(r.antakelser).slice(0,200):"");
+    }catch(e){out.textContent=e&&e.code==="rate_limited"?"For mange anslag på kort tid. Prøv igjen litt senere.":"Fikk ikke noe anslag. Fyll inn tallene selv.";out.classList.add("err")}
+    finally{btn.disabled=false}
+    return;
+  }
+  const r=localEstimate(n+" "+desc);
+  if(!r){out.textContent="Fant ingen kjente matvarer. Fyll inn tallene selv.";out.classList.add("err");return}
+  fill(r);out.textContent=r.note+" Regnet som én porsjon.";
+}
+function saveOwn(){
+  const g=id=>$("#"+id).value,num=id=>g(id)===""?"":Math.max(0,Math.round(+g(id)*10)/10);
+  const o={id:OCTX.dishId,n:g("od-n").trim(),src:document.querySelector('input[name="od-src"]:checked')?.value||"Annet",desc:g("od-desc").trim(),
+    serv:Math.max(1,Math.round(+g("od-serv")||1)),kcal:num("od-kcal"),p:num("od-p"),f:num("od-f"),k:num("od-k"),t:num("od-t"),ppp:num("od-ppp"),
+    fixed:$("#od-fixed").checked,shop:$("#od-shop").checked,myFix:Math.max(.25,+g("od-myfix")||1)};
+  const out=$("#od-out");out.className="note estout";
+  if(!o.n){out.textContent="Gi retten et navn.";out.classList.add("err");return}
+  if(!(+o.kcal>0)){out.textContent="Fyll inn kalorier per porsjon, eller trykk «Anslå næringsinnhold».";out.classList.add("err");return}
+  const prev=S.ownDishes.find(x=>x.id===o.id);o.meal=prev?prev.meal:"middag";
+  let idx=OCTX.idx;
+  if(OCTX.isNew){
+    if(idx==null&&$("#od-day")){const d=+$("#od-day").value,m=$("#od-meal").value;idx=P.slots.findIndex(s=>s.d===d&&s.meal===m)}
+    if(idx!=null&&idx>=0&&P.slots[idx])o.meal=P.slots[idx].meal;
+    S.ownDishes.push(o);
+  } else S.ownDishes=S.ownDishes.map(x=>x.id===o.id?o:x);
+  registerOwn();closeSheet();
+  if(OCTX.isNew&&idx!=null&&idx>=0)return placeOwn(idx,o.id);
+  save();renderAll();toast("Retten er lagret");
+}
+function deleteOwn(id){
+  Object.keys(S.ownPlaced).forEach(k=>{if(S.ownPlaced[k]===id)delete S.ownPlaced[k]});
+  S.ownDishes=S.ownDishes.filter(x=>x.id!==id);registerOwn();
+  P.slots.forEach((s,idx)=>{if(s.id==="own:"+id){s.own=false;s.id=null;s.id=bestFor(idx)}});
+  closeSheet();save();renderAll();toast("Retten er slettet");
+}
+function ownClick(t){
+  const d=t.dataset;
+  if(d.ownpick!==undefined){openOwnPick(+d.ownpick);return true}
+  if(d.ownplace!==undefined){const idx=OCTX.idx;closeSheet();placeOwn(idx,d.ownplace);return true}
+  if(d.ownnew!==undefined){openOwnEdit(null,d.ownnew===""?null:+d.ownnew);return true}
+  if(d.ownedit!==undefined){openOwnEdit(d.ownedit,d.idx!=null?+d.idx:null);return true}
+  if(d.ownrm!==undefined){if(t.hasAttribute("data-close"))closeSheet();removeOwn(+d.ownrm);return true}
+  if(d.owndel!==undefined){deleteOwn(d.owndel);return true}
+  if(t.id==="od-est"){ownEstimate();return true}
+  if(t.id==="od-save"){saveOwn();return true}
+  return false;
 }
 
 /* ---------- Boot ---------- */
