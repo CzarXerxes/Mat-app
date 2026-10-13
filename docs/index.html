@@ -1090,7 +1090,7 @@ function renderLogg(){
   <div class="summary">
     <div class="stats">
       <div class="stat"><span class="k">Spist</span><span class="v">${nf(tot.kcal)}<small> kcal</small></span></div>
-      <div class="stat"><span class="k">Mål${trainDelta(ds)<0?" − økt hoppet over":trainDelta(ds)>0?" + ekstra trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Mål${trainDelta(ds)<0?" − trening ikke gjennomført":trainDelta(ds)>0?" + ekstra trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
       <div class="stat"><span class="k">Planlagt igjen</span><span class="v">${nf(remaining)}<small> kcal</small></span></div>
     </div>
     <div class="meter">
@@ -1392,10 +1392,12 @@ function trainDelta(ds){
   dayTrain(ds).forEach(x=>{
     if(x.planId){const p=S.program.find(q=>q.id===x.planId),pb=p?sessKcal(p):0;d+=x.skipped?-pb:sessKcal(x)-pb}
     else d+=sessKcal(x)});
+  if(ds<iso(new Date()))d-=unregistered(ds).reduce((a,p)=>a+sessKcal(p),0);
   return Math.round(d*S.exFactor/100);
 }
 function unregistered(ds){const done=dayTrain(ds);return plannedFor(new Date(ds+"T12:00:00")).filter(p=>!done.some(x=>x.planId===p.id))}
-function pendingTrain(ds){return trainInEnergy()&&ds<=iso(new Date())?Math.round(unregistered(ds).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100):0}
+function autoMissed(ds){return trainInEnergy()&&ds<iso(new Date())?Math.round(unregistered(ds).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100):0}
+function pendingTrain(ds){return trainInEnergy()&&ds===iso(new Date())?Math.round(unregistered(ds).reduce((a,p)=>a+sessKcal(p),0)*S.exFactor/100):0}
 function trainBonus(ds){
   const burn=dayTrain(ds).reduce((a,x)=>{
     return a+sessKcal(x)},0);
@@ -1417,7 +1419,7 @@ function kosDay(ds,future){
   const dl=dayLog(ds),t=dayTotals(dl);
   const kosE=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
   const used=t.n?kosE+Math.max(0,(t.kcal-kosE)-base):0;
-  return{earned:baseEarned+delta,barEarn:baseEarned+Math.max(0,delta),barUse:used+Math.max(0,-delta),baseEarned,delta,pending:future?0:pendingTrain(ds),used,kosE,base,logged:t.n>0};
+  return{earned:baseEarned+delta,barEarn:baseEarned+Math.max(0,delta),barUse:used+Math.max(0,-delta),baseEarned,delta,pending:future?0:pendingTrain(ds),auto:future?0:autoMissed(ds),used,kosE,base,logged:t.n>0};
 }
 function kosStatus(ds){
   const wk=weekDates(ds),today=iso(new Date());let missed=0,carry=0,cur=null,future=0;const days=[];
@@ -1431,11 +1433,11 @@ function kosCard(ds){
   const k=kosStatus(ds),mx=Math.max(1,...k.days.map(d=>Math.max(d.barEarn,d.barUse)));
   return`<div class="lcard kos"><div class="lhead"><span class="mtype">Kosekvote</span><span class="plan">Uke ${isoWeek(new Date(ds+"T12:00:00"))} · nullstilles mandag</span></div>
     <div class="kos-top"><div class="kos-big ${k.avail<0?"neg":""}">${nf(k.avail)}<small> kcal igjen i dag</small></div><span class="note">Resten av uka kan du tjene ${nf(k.future)} kcal til.</span></div>
-    <div class="kos-rows"><span>Overført fra tidligere i uka${k.missed?`<br><small class="flag">herav −${nf(k.missed)} for trening du hoppet over</small>`:""}</span><span>${nf(k.carry)}</span><span>Opptjent i dag</span><span>+${nf(k.cur.baseEarned)}</span>${k.cur.delta?`<span>${k.cur.delta>0?"Trening utover programmet":"Trening du hoppet over"}</span><span>${k.cur.delta>0?"+":"−"}${nf(Math.abs(k.cur.delta))}</span>`:""}<span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
-    ${k.cur.pending?`<p class="note flag" style="margin:0">Planlagt trening ${ds===iso(new Date())?"i dag ":""}er ikke registrert ennå. Kvoten endres ikke før du registrerer den. Trykker du «Hoppet over», trekkes ${nf(k.cur.pending)} kcal.</p>
+    <div class="kos-rows"><span>Overført fra tidligere i uka${k.missed?`<br><small class="flag">herav −${nf(k.missed)} for trening som ikke ble gjennomført</small>`:""}</span><span>${nf(k.carry)}</span><span>Opptjent i dag</span><span>+${nf(k.cur.baseEarned)}</span>${k.cur.delta?`<span>${k.cur.delta>0?"Trening utover programmet":"Planlagt trening ikke gjennomført"}</span><span>${k.cur.delta>0?"+":"−"}${nf(Math.abs(k.cur.delta))}</span>`:""}<span>Brukt i dag</span><span>−${nf(k.cur.used)}</span></div>
+    ${k.cur.pending||k.cur.auto?`<p class="note flag" style="margin:0">${k.cur.auto?`Planlagt trening ble ikke registrert, så ${nf(k.cur.auto)} kcal er trukket fra kvoten. Glemte du å logge en økt du gjennomførte, trykker du «Gjennomført», så fjernes trekket.`:`Dagens planlagte trening er ikke registrert ennå. Er den ikke registrert når dagen er over, trekkes ${nf(k.cur.pending)} kcal. Du kan endre det i etterkant.`}</p>
     <div class="actions">${unregistered(ds).map(p=>`<button class="btn sm" data-tdone="${p.id}">${ICON.tick}${esc(sessName(p))} gjennomført</button><button class="btn sm" data-tskip="${p.id}">Hoppet over</button>`).join("")}</div>`:""}
     <div class="weekstrip" role="img" aria-label="Kosekvote per dag denne uka">${k.days.map((d,i)=>`<div class="wday ${d.fut?"future":""} ${d.ds===ds?"sel":""}"><div class="wbar"><span class="earn" style="height:${d.barEarn/mx*100}%"></span><span class="use" style="height:${d.barUse/mx*100}%"></span></div>${DOWS[i]}</div>`).join("")}</div>
-    <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt eller trukket for trening du hoppet over</span></div>
+    <div class="legend"><span><i class="dot c-e"></i>Opptjent</span><span><i class="dot c-p"></i>Brukt eller trukket for trening som ikke ble gjennomført</span></div>
     <div class="actions"><button class="btn sm primary" data-logedit="x:kos">${ICON.plus}Før opp kos</button></div>
     <p class="note" style="margin:0">Det du fører opp som «Kos» trekkes alltid fra kvoten. Spiser du mer enn det som er satt av til måltider og faste mellommåltider (${nf(S.kcal*(1-kosShare()/100))} kcal per dag), trekkes også det fra.${trainInEnergy()?" Treningsprogrammet er fordelt jevnt over uka. Dropper du en planlagt økt, trekkes den fra kvoten. Trener du mer enn planlagt, legges det til.":" Gjennomførte økter legges til kvoten."} Dager uten logg teller som at kvoten ikke ble brukt.</p></div>`;
 }
