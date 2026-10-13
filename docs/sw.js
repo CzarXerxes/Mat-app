@@ -1,5 +1,5 @@
-/* Matplan service worker – versjon d70987661e */
-const CACHE = "matplan-d70987661e";
+/* Matplan service worker – versjon b996ba8900 */
+const CACHE = "matplan-b996ba8900";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
