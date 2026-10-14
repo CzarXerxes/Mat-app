@@ -32,3 +32,7 @@ Publisert som artefakt bruker appen tre tilganger: lagring på Claude-kontoen (s
 Etter endringer i `matplan.html`: kjør `python3 build_pwa.py` (krever Pillow) og publiser `docs/` på nytt. Appen oppdaterer seg selv neste gang den åpnes med nett.
 
 I den installerte appen lagres alt lokalt på telefonen, og næringsanslag gjøres grovt fra standardporsjoner. Synk mellom enheter og anslag med Claude (også fra bilde) finnes bare i artefakt-versjonen på claude.ai.
+
+## Flytte data mellom enheter
+
+Under Oppsett → Sikkerhetskopi og flytting kan du lagre alt som en fil («Lagre fil») eller kopiere det som tekst («Kopier som tekst»), og lese det inn på den andre enheten. «Slå sammen» beholder det som bare finnes på enheten og bruker filen der begge har noe; «Erstatt alt» bruker bare filen. Versjonen på claude.ai synkroniserer selv via Claude-kontoen; den installerte appen lagrer bare lokalt på telefonen.

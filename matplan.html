@@ -309,6 +309,8 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .copylist .ci:hover,.copylist .ci.on{background:var(--sunk)}
 .copylist .ci small{color:var(--muted);font-size:12px}
 .copylist .ci .num{font-size:13px;color:var(--muted);align-self:center}
+.io-prev{background:var(--sunk);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:13.5px}
+.io-prev ul{margin:0;padding-left:18px}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -859,7 +861,8 @@ function renderOppsett(){
   </div>
   ${ownLibCard()}
   <div class="card"><div class="field"><span class="t">Måltider som ikke skal planlegges</span><span class="hint">Trykk på et måltid for å ta det ut av menyen, for eksempel middag på restaurant eller frokost på en konferanse. Trykk igjen for å planlegge det likevel. Gjelder menyen som er laget nå.</span>${skipMatrix()}</div></div>
-  <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>`;
+  <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>
+  ${ioCard()}`;
   el.innerHTML=h;
 }
 function stepper(key,val,lbl){return`<div class="stepper" role="group" aria-labelledby="${lbl}"><button type="button" data-step="${key}" data-d="-1" aria-label="Færre">−</button><output class="num" id="o-${key}">${val}</output><button type="button" data-step="${key}" data-d="1" aria-label="Flere">+</button></div>`}
@@ -935,6 +938,7 @@ document.addEventListener("click",e=>{
   if(v10Click(t))return;
   if(ownClick(t))return;
   if(copyClick(t))return;
+  if(ioClick(t))return;
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
@@ -945,6 +949,8 @@ $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()})
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(t.id==="im-file"){readImportFile(t);return}
+  if(t.id==="im-text")return;
   if((t.id||"").startsWith("od-")||t.name==="od-src")return;
   if(v10Change(t))return;
   if(v4Change(t))return;
@@ -963,7 +969,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
-  if((t.id||"").startsWith("kb-")||(t.id||"").startsWith("od-"))return;
+  if((t.id||"").startsWith("kb-")||(t.id||"").startsWith("od-")||t.id==="im-text")return;
   if(v4Input(t))return;
   if(["l-kcal","l-p","l-f","l-k"].includes(t.id)){LOGCTX.src="manual";document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));return}
   if(t.id==="l-desc"||t.id==="sk-note")return;
@@ -2065,6 +2071,61 @@ function copyClick(t){
     box.querySelectorAll(".ci").forEach(b=>b.classList.toggle("on",b===t.closest(".ci")));
     const sh=$("#l-share");sh.hidden=false;t.closest(".ci").after(sh);applyCopy(1);return true}
   if(d.lshare!==undefined){applyCopy(+d.lshare);return true}
+  return false;
+}
+
+/* ---------- Sikkerhetskopi: eksport og import ---------- */
+let IMPORT=null;
+function exportJSON(){return JSON.stringify({app:"matplan",format:1,exported:new Date().toISOString(),settings:S,plan:P,checked,skips,log:LOG})}
+function ioCard(){
+  return`<div class="card"><div class="field"><span class="t">Sikkerhetskopi og flytting</span>
+    <span class="hint">Lagre alt du har lagt inn (innstillinger, meny, logg, trening, målinger og egne retter) i én fil, og les den inn på en annen enhet, for eksempel fra PC-en til appen på telefonen.</span>
+    <div class="actions"><button class="btn" data-exp="file">Lagre fil</button><button class="btn" data-exp="copy">${ICON.copy}Kopier som tekst</button></div></div>
+    <div class="field"><span class="t">Les inn</span>
+    <div class="actions"><label class="btn" for="im-file">Velg fil</label><input type="file" id="im-file" accept=".json,application/json,text/plain" class="sr"></div>
+    <textarea class="txt" id="im-text" rows="3" placeholder="…eller lim inn teksten fra «Kopier som tekst» her"></textarea>
+    <div class="actions"><button class="btn sm" data-imp="text">Les inn tekst</button></div>
+    <div id="im-prev"></div></div></div>`;
+}
+async function exportData(how){
+  const data=exportJSON(),fn=`matplan-${iso(new Date())}.json`;
+  if(how==="copy"){try{await navigator.clipboard.writeText(data);toast("Kopiert. Lim inn under «Les inn» på den andre enheten.")}catch(e){const ta=$("#im-text");ta.value=data;ta.select();toast("Kunne ikke kopiere automatisk. Teksten er markert i feltet under, kopier den selv.")}return}
+  if(window.claude&&typeof claude.use==="function"){const dl=await claude.use("downloads").catch(()=>null);
+    if(dl){try{await dl.save({filename:fn,data});toast("Filen er lagret");return}catch(e){if(e&&e.code==="declined")return}}}
+  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download=fn;document.body.appendChild(a);a.click();a.remove();toast("Filen er lagret")}
+  catch(e){toast("Kunne ikke lagre fil her. Bruk «Kopier som tekst».")}
+}
+function readImportFile(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>previewImport(String(r.result||""));r.onerror=()=>toast("Kunne ikke lese filen");r.readAsText(f)}
+function previewImport(txt){
+  const box=$("#im-prev");let o=null;try{o=JSON.parse(txt.trim())}catch(e){}
+  if(!o||o.app!=="matplan"||!o.settings){IMPORT=null;box.innerHTML=`<p class="note flag" style="margin:0">Dette ser ikke ut som en Matplan-fil. Bruk filen eller teksten fra «Lagre fil» eller «Kopier som tekst».</p>`;return}
+  IMPORT=o;const st=o.settings,days=Object.values(o.log||{}).reduce((a,m)=>a+Object.keys(m).length,0);
+  const tr=Object.values(o.log||{}).reduce((a,m)=>a+Object.values(m).reduce((b,d)=>b+((d.train||[]).length),0),0);
+  box.innerHTML=`<div class="io-prev"><b>Fil fra ${new Date(o.exported).toLocaleString("nb-NO",{dateStyle:"medium",timeStyle:"short"})}</b>
+    <ul><li>${days} dager med logg og ${tr} registrerte økter</li><li>${(st.body||[]).length} målinger</li><li>${(st.ownDishes||[]).length} egne retter, ${(st.program||[]).length} økter i treningsprogrammet</li><li>Meny fra ${st.start||"–"}, ${st.days||"–"} dager</li></ul>
+    <span><b>Slå sammen</b> beholder det som bare finnes her, og bruker filen der begge har noe (samme dag i loggen, samme måling). Innstillinger og meny hentes fra filen.</span>
+    <span><b>Erstatt alt</b> sletter det som er lagt inn her og bruker bare filen.</span>
+    <div class="actions"><button class="btn primary" data-impgo="merge">Slå sammen</button><button class="btn" data-impgo="replace">Erstatt alt</button><button class="btn" data-impgo="cancel">Avbryt</button></div></div>`;
+}
+function applyImport(mode){
+  const o=clean(IMPORT);if(!o)return;
+  if(mode==="replace"){S=Object.assign({},DEFAULTS,o.settings);P=o.plan||null;checked=o.checked||{};skips=o.skips||{};LOG=o.log||{}}
+  else{
+    const s=o.settings,byId=(a,b)=>{const m=new Map((a||[]).map(x=>[x.id,x]));(b||[]).forEach(x=>m.set(x.id,x));return[...m.values()]};
+    const keep={body:byId(S.body,s.body),ownDishes:byId(S.ownDishes,s.ownDishes),program:byId(S.program,s.program),ownPlaced:{...(S.ownPlaced||{}),...(s.ownPlaced||{})}};
+    S=Object.assign({},DEFAULTS,s,keep);P=o.plan||P;checked={...checked,...(o.checked||{})};skips={...skips,...(o.skips||{})};
+    Object.entries(o.log||{}).forEach(([m,days])=>{LOG[m]=LOG[m]||{};Object.entries(days).forEach(([ds,dl])=>{LOG[m][ds]=dl})});
+  }
+  normalizeS();{const lw=bodySorted().filter(m=>+m.w>0).slice(-1)[0];if(lw)S.me.w=+lw.w}syncKcal();ensurePlan();
+  const now=Date.now();META.updatedAt=now;Object.keys(LOG).forEach(m=>{LOGMETA[m]=now;cloud.loaded.add(m)});
+  persistLocal();store.set("log",LOG);store.set("logmeta",LOGMETA);queueState();Object.keys(LOG).forEach(m=>queueLog(m));
+  IMPORT=null;ADAPT=undefined;logDay=null;renderAll();toast(mode==="replace"?"Alt er erstattet med innholdet i filen":"Filen er slått sammen med det som var her");
+}
+function ioClick(t){
+  const d=t.dataset;
+  if(d.exp!==undefined){exportData(d.exp);return true}
+  if(d.imp==="text"){const v=$("#im-text").value;if(!v.trim()){toast("Lim inn teksten først");return true}previewImport(v);return true}
+  if(d.impgo!==undefined){if(d.impgo==="cancel"){IMPORT=null;$("#im-prev").innerHTML="";return true}applyImport(d.impgo);return true}
   return false;
 }
 
