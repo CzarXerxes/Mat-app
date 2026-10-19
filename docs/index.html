@@ -332,6 +332,10 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .pbtn{border:0;background:var(--sunk);color:var(--ink);width:30px;height:28px;border-radius:999px;font-size:18px;line-height:1;display:grid;place-items:center}
 .pbtn:disabled{opacity:.35;cursor:default}
 .pstat{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
+.libsearch{width:100%}
+.libamt{display:flex;flex-direction:column;gap:6px;padding:6px 4px 2px}
+.libamt .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.libamt input{width:90px}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -560,6 +564,7 @@ const ICON = {
   spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z"/></svg>',
   run:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="1.8"/><path d="M8 21l3.5-5.5L14 17v4M10 12.5l1.5-4.5 4 2 2.5 3M11.5 8l-3.5 1.5L6.5 13"/></svg>',
   flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.6-5.6 4-8.8.6 2 1.8 3.2 3 3.6.3-2.4 1.3-4.4 2.8-6.1.5 3.6 3.2 5.6 3.2 10.2 0 4-2.7 7.3-6.5 7.3z"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h9.5a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9.5"/></svg>',
   copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></svg>',
 };
 
@@ -584,7 +589,7 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[],ownDishes:[],ownPlaced:{}};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[],ownDishes:[],ownPlaced:{},foods:[]};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -882,6 +887,7 @@ function renderOppsett(){
       <span class="hint" id="h-avail">${avail} av ${R.length} oppskrifter passer valgene dine.</span></div>
   </div>
   ${ownLibCard()}
+  ${foodLibCard()}
   <div class="card"><div class="field"><span class="t">Måltider som ikke skal planlegges</span><span class="hint">Trykk på et måltid for å ta det ut av menyen, for eksempel middag på restaurant eller frokost på en konferanse. Trykk igjen for å planlegge det likevel. Gjelder menyen som er laget nå.</span>${skipMatrix()}</div></div>
   <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>
   ${ioCard()}`;
@@ -961,6 +967,7 @@ document.addEventListener("click",e=>{
   if(v10Click(t))return;
   if(ownClick(t))return;
   if(copyClick(t))return;
+  if(libClick(t))return;
   if(ioClick(t))return;
   if(t.dataset.per!==undefined){navPeriod(t.dataset.per==="today"?"today":+t.dataset.per);return}
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
@@ -973,6 +980,7 @@ $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()})
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
 document.addEventListener("change",e=>{
   const t=e.target;
+  if(libChange(t))return;
   if(t.id==="im-file"){readImportFile(t);return}
   if(t.id==="im-text")return;
   if((t.id||"").startsWith("od-")||t.name==="od-src")return;
@@ -993,6 +1001,9 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target;
+  if(t.id==="lib-q"){renderLibList(t.value);return}
+  if(t.id==="lib-amt"){const v=+t.value;if(v>0&&LIBSEL)applyLib(LIBSEL,v,true);return}
+  if((t.id||"").startsWith("fd-"))return;
   if((t.id||"").startsWith("kb-")||(t.id||"").startsWith("od-")||t.id==="im-text")return;
   if(v4Input(t))return;
   if(["l-kcal","l-p","l-f","l-k"].includes(t.id)){LOGCTX.src="manual";document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));return}
@@ -1073,7 +1084,7 @@ function skipMatrix(){
 }
 
 /* ---------- Logg ---------- */
-const SRC = {copy:"Kopiert",plan:"Fra menyen", manual:"Oppgitt", ai:"Anslått av Claude", db:"Grovt anslag"};
+const SRC = {lib:"Fra biblioteket",copy:"Kopiert",plan:"Fra menyen", manual:"Oppgitt", ai:"Anslått av Claude", db:"Grovt anslag"};
 const LOG_TYPES = ["Mellommåltid","Kos","Frokost","Lunsj","Middag","Kveldsmat"];
 let LOGCTX = {};
 const monthOf = ds => ds.slice(0,7);
@@ -1157,7 +1168,7 @@ function openLog(key){
    <div><span class="mtype">${esc(title)} · ${fmtDay(date)}</span><h2 id="sheetTitle">Hva spiste du?</h2></div>
    ${isExtra?`<div class="field-s"><span class="t">Type</span><div class="chips">${LOG_TYPES.map((t,i)=>`<label class="chip"><input type="radio" name="l-type" value="${t}" ${(ex?ex.type===t:(key==="x:kos"?t==="Kos":i===0))?"checked":""}><span>${t}</span></label>`).join("")}</div></div>`:""}
    ${recipe?`<div class="field-s"><span class="t">Fra menyen: ${esc(recipe.n)}</span><div class="chips">${portionChoices(recipe,key,logDay).map(p=>`<button type="button" class="chip-btn ${LOGCTX.portion===p?"on":""}" data-portion="${p}">${portionLabel(p)} porsjon${S.scalePortion&&p===myPortion(recipe,key,logDay)?" · din":""}</button>`).join("")}</div></div><div class="or">eller beskriv det du spiste</div>`:""}
-   <div class="field-s"><div class="actions"><button type="button" class="btn sm" id="l-copy">${ICON.copy}Kopier fra tidligere</button></div><div id="l-copylist" class="copylist" hidden></div></div>
+   <div class="field-s"><div class="actions"><button type="button" class="btn sm" id="l-copy">${ICON.copy}Kopier fra tidligere</button><button type="button" class="btn sm" id="l-lib">${ICON.book}Fra biblioteket</button></div><div id="l-copylist" class="copylist" hidden></div><div id="l-libbox" class="copylist" hidden></div></div>
    <div class="field-s"><label class="t" for="l-desc">Beskrivelse</label><textarea id="l-desc" class="txt" rows="2" placeholder="F.eks. biff med pommes frites og bearnaise, ett glass rødvin">${esc(ex&&ex.src!=="plan"?(ex.desc||ex.name||""):"")}</textarea></div>
    <div class="photo-row" id="photoRow" ${SAMPLE&&SAMPLE_IMG?"":"hidden"}><label class="btn" for="l-photo">${ICON.camera}Ta eller velg bilde</label><input type="file" id="l-photo" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" class="sr"><img id="l-prev" alt="Bilde av måltidet" hidden></div>
    <div class="actions"><button class="btn" id="l-est">${ICON.spark}Anslå næringsinnhold</button></div>
@@ -1263,6 +1274,7 @@ function saveLogEntry(){
   const dl=dayLog(c.ds,true);
   if(c.isExtra){e.type=document.querySelector('input[name="l-type"]:checked')?.value||"Mellommåltid";if(c.xi!==null)dl.extra[c.xi]=e;else dl.extra.push(e)}
   else dl.slots[c.key]=e;
+  if(c.src==="lib"&&c.libId){const f=S.foods.find(x=>x.id===c.libId);if(f){f.uses=(f.uses||0)+1;f.lastAmt=c.libAmt;save();renderOppsett()}}
   saveLog(c.ds);closeSheet();renderLogg();renderMeny();toast("Lagt i loggen");
 }
 
@@ -1323,6 +1335,7 @@ function normalizeS(){
   if(!Array.isArray(S.program))S.program=[];
   if(!Array.isArray(S.body))S.body=[];
   if(!Array.isArray(S.ownDishes))S.ownDishes=[];
+  if(!Array.isArray(S.foods))S.foods=[];
   if(!S.ownPlaced||typeof S.ownPlaced!=="object")S.ownPlaced={};
   registerOwn();
   if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
@@ -2142,7 +2155,7 @@ function applyImport(mode){
   if(mode==="replace"){S=Object.assign({},DEFAULTS,o.settings);P=o.plan||null;checked=o.checked||{};skips=o.skips||{};LOG=o.log||{}}
   else{
     const s=o.settings,byId=(a,b)=>{const m=new Map((a||[]).map(x=>[x.id,x]));(b||[]).forEach(x=>m.set(x.id,x));return[...m.values()]};
-    const keep={body:byId(S.body,s.body),ownDishes:byId(S.ownDishes,s.ownDishes),program:byId(S.program,s.program),ownPlaced:{...(S.ownPlaced||{}),...(s.ownPlaced||{})}};
+    const keep={foods:byId(S.foods,s.foods),body:byId(S.body,s.body),ownDishes:byId(S.ownDishes,s.ownDishes),program:byId(S.program,s.program),ownPlaced:{...(S.ownPlaced||{}),...(s.ownPlaced||{})}};
     S=Object.assign({},DEFAULTS,s,keep);P=o.plan||P;checked={...checked,...(o.checked||{})};skips={...skips,...(o.skips||{})};
     Object.entries(o.log||{}).forEach(([m,days])=>{LOG[m]=LOG[m]||{};Object.entries(days).forEach(([ds,dl])=>{LOG[m][ds]=dl})});
   }
@@ -2203,6 +2216,132 @@ function navPeriod(dir){
   if(dir<0){if(i>0)loadPeriod(ps[i-1].start);return}
   if(i<ps.length-1)return loadPeriod(ps[i+1].start);
   const start=iso(addDays(periodEnd({start:S.start,days:S.days}),1));createPeriod(start,S.days);toast("Neste periode er planlagt");
+}
+
+/* ---------- Matvarebibliotek: egne produkter med næringsinnhold ---------- */
+let LIBSEL=null, FCTX={};
+const LIBSH=[.25,1/3,.5,.75,1];
+const shLbl = f => ({.25:"¼",.5:"½",.75:"¾",1:"hele"})[f]||(Math.abs(f-1/3)<.001?"⅓":String(f));
+const foodTitle = f => (f.brand?f.brand+" ":"")+f.n;
+const perLbl = f => f.unit==="stk"?"per stk":`per 100 ${f.unit}`;
+function foodNutr(f,amt){const m=f.unit==="stk"?amt:amt/100;return{kcal:(+f.kcal||0)*m,p:(+f.p||0)*m,f:(+f.f||0)*m,k:(+f.k||0)*m}}
+const amtLbl = (f,a) => f.unit==="stk"?`${(Math.round(a*100)/100).toLocaleString("nb-NO")} stk`:`${Math.round(a)} ${f.unit}`;
+function foodLibCard(){
+  const L=[...(S.foods||[])].sort((a,b)=>(b.uses||0)-(a.uses||0)||foodTitle(a).localeCompare(foodTitle(b),"nb"));
+  return`<div class="card"><div class="field"><span class="t">Matvarebibliotek</span><span class="hint">Produkter du spiser ofte, med næringsinnholdet fra pakken. Velg dem med «Fra biblioteket» når du fører opp mat, og oppgi hvor mye av pakken du brukte.</span>
+    ${L.length?L.map(f=>`<div class="prog"><div><b>${esc(foodTitle(f))}</b><div class="sess-meta">${nf(+f.kcal||0)} kcal ${perLbl(f)}${+f.size?` · pakke ${amtLbl(f,+f.size)}`:""}${f.uses?` · brukt ${f.uses} ${f.uses===1?"gang":"ganger"}`:""}</div></div><div class="actions"><button class="btn sm" data-fedit="${f.id}">Endre</button></div></div>`).join(""):'<span class="hint">Ingen matvarer ennå.</span>'}
+    <button class="btn" data-fedit="new">${ICON.plus}Ny matvare</button></div></div>`;
+}
+function libSorted(q){
+  q=(q||"").trim().toLowerCase();
+  return[...(S.foods||[])].filter(f=>!q||foodTitle(f).toLowerCase().includes(q)).sort((a,b)=>(b.uses||0)-(a.uses||0)||foodTitle(a).localeCompare(foodTitle(b),"nb"));
+}
+function renderLibList(q){
+  const ul=$("#lib-list");if(!ul)return;const L=libSorted(q);
+  ul.innerHTML=L.length?L.map(f=>`<button type="button" class="ci ${LIBSEL===f.id?"on":""}" data-libpick="${f.id}"><span>${esc(foodTitle(f))}<br><small>${nf(+f.kcal||0)} kcal ${perLbl(f)}${+f.size?` · pakke ${amtLbl(f,+f.size)}`:""}</small></span><span class="num">${f.uses?f.uses+"×":""}</span></button>`).join("")
+    :`<p class="note" style="margin:4px">${(S.foods||[]).length?"Ingen treff.":"Biblioteket er tomt."}</p>`;
+}
+function showLib(){
+  const box=$("#l-libbox");if(!box)return;
+  if(!box.hidden){box.hidden=true;return}
+  $("#l-copylist").hidden=true;LIBSEL=null;
+  box.innerHTML=`<input type="search" class="txt libsearch" id="lib-q" placeholder="Søk i biblioteket" autocomplete="off"><div id="lib-list"></div><div id="lib-amtbox" class="libamt" hidden></div><div class="actions"><button type="button" class="btn sm" data-fedit="new" data-fromlog="1">${ICON.plus}Ny matvare</button></div>`;
+  box.hidden=false;renderLibList("");
+}
+function pickLib(id){
+  const f=S.foods.find(x=>x.id===id);if(!f)return;LIBSEL=id;renderLibList($("#lib-q")?$("#lib-q").value:"");
+  const box=$("#lib-amtbox"),size=+f.size||0;
+  const chips=f.unit==="stk"?[1,2,3].map(n=>`<button type="button" class="chip-btn" data-libamt="${n}">${n} stk</button>`).join("")
+    :size?LIBSH.map(sh=>`<button type="button" class="chip-btn" data-libamt="${Math.round(size*sh*10)/10}">${shLbl(sh)} pakke</button>`).join(""):"";
+  box.innerHTML=`<span class="hint">Hvor mye brukte du?</span>${chips?`<div class="chips">${chips}</div>`:""}<div class="row"><label for="lib-amt" class="hint">Mengde</label><input type="number" class="txt" id="lib-amt" inputmode="decimal" min="0" step="${f.unit==="stk"?0.5:5}"><span class="hint">${f.unit}</span></div>`;
+  box.hidden=false;
+  applyLib(id,+f.lastAmt||(f.unit==="stk"?1:size||100));
+}
+function applyLib(id,amt,typed){
+  const f=S.foods.find(x=>x.id===id);if(!f||!(amt>0))return;
+  setNutr(foodNutr(f,amt));
+  const size=+f.size||0,share=size&&f.unit!=="stk"?amt/size:null;
+  const sh=share!=null?LIBSH.find(x=>Math.abs(x-share)<.002):null;
+  $("#l-desc").value=foodTitle(f)+` (${sh!=null?shLbl(sh)+" pakke, ":""}${amtLbl(f,amt)})`;
+  if(!typed&&$("#lib-amt"))$("#lib-amt").value=Math.round(amt*10)/10;
+  document.querySelectorAll("[data-libamt]").forEach(b=>b.classList.toggle("on",Math.abs(+b.dataset.libamt-amt)<.01));
+  document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));
+  LOGCTX.src="lib";LOGCTX.libId=id;LOGCTX.libAmt=amt;LOGCTX.aiName=foodTitle(f);
+  LOGCTX.note=`Fra matvarebiblioteket: ${amtLbl(f,amt)}${share!=null?` (${Math.round(share*100)} % av pakken)`:""}, ${nf(+f.kcal)} kcal ${perLbl(f)}.`;
+  const o=$("#l-estout");o.className="note estout";o.textContent=LOGCTX.note;
+}
+function openFood(id,fromLog){
+  const f=id==="new"?{id:"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:"",brand:"",unit:"g",size:"",kcal:"",p:"",f:"",k:"",note:""}:S.foods.find(x=>x.id===id);if(!f)return;
+  FCTX={id:f.id,isNew:id==="new",returnTo:fromLog?{key:LOGCTX.key,day:logDay}:null,photo:null};
+  const v=x=>x??"";
+  $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Matvarebibliotek</span><h2 id="sheetTitle">${id==="new"?"Ny matvare":"Endre matvare"}</h2></div>
+   <div class="field-s"><label class="t" for="fd-n">Produkt</label><input type="text" class="txt" id="fd-n" maxlength="60" placeholder="F.eks. Skyr vanilje" value="${esc(f.n)}"></div>
+   <div class="field-s"><label class="t" for="fd-brand">Merke</label><input type="text" class="txt" id="fd-brand" maxlength="40" placeholder="F.eks. Q" value="${esc(f.brand||"")}"></div>
+   <div class="field-s"><span class="t">Enhet</span><div class="chips">${["g","ml","stk"].map(u=>`<label class="chip"><input type="radio" name="fd-unit" value="${u}" ${f.unit===u?"checked":""}><span>${u==="stk"?"Stykk":u}</span></label>`).join("")}</div></div>
+   <div class="field-row"><label class="t" for="fd-size" id="fd-sizelbl">${f.unit==="stk"?"Antall stk i pakken":"Pakningsstørrelse, "+f.unit}</label><input type="number" id="fd-size" inputmode="decimal" min="0" value="${v(f.size)}"></div>
+   <div class="photo-row" ${SAMPLE?"":"hidden"}>${SAMPLE_IMG?`<label class="btn" for="fd-photo">${ICON.camera}Bilde av næringsdeklarasjonen</label><input type="file" id="fd-photo" accept="image/jpeg,image/png,image/webp" capture="environment" class="sr"><img id="fd-prev" alt="Næringsdeklarasjon" hidden>`:""}<button type="button" class="btn" id="fd-est">${ICON.spark}${SAMPLE_IMG?"Les av":"Anslå"}</button></div>
+   <p class="note estout" id="fd-out">${SAMPLE?(SAMPLE_IMG?"Ta bilde av næringsdeklarasjonen, så leser Claude av tallene. Uten bilde anslår Claude ut fra produkt og merke.":"Claude kan anslå tallene ut fra produkt og merke, men det er mest presist å skrive dem av fra pakken."):"Skriv av tallene fra næringsdeklarasjonen på pakken."}</p>
+   <span class="t" id="fd-perlbl">Næringsinnhold ${perLbl(f)}</span>
+   <div class="nutr">
+     <label for="fd-kcal">Kcal<input type="number" id="fd-kcal" inputmode="decimal" min="0" value="${v(f.kcal)}"></label>
+     <label for="fd-p">Protein, g<input type="number" id="fd-p" inputmode="decimal" min="0" step="0.1" value="${v(f.p)}"></label>
+     <label for="fd-f">Fett, g<input type="number" id="fd-f" inputmode="decimal" min="0" step="0.1" value="${v(f.f)}"></label>
+     <label for="fd-k">Karbo, g<input type="number" id="fd-k" inputmode="decimal" min="0" step="0.1" value="${v(f.k)}"></label></div>
+   <div class="actions">${id!=="new"?`<button class="btn" data-fdel="${f.id}">Slett</button>`:""}<button class="btn" id="${fromLog?"fd-cancel":"closeSheet"}">Avbryt</button><button class="btn primary" id="fd-save">Lagre</button></div>`;
+  $("#scrim").hidden=false;
+}
+function fdUnit(){return document.querySelector('input[name="fd-unit"]:checked')?.value||"g"}
+async function foodEstimate(){
+  const out=$("#fd-out"),btn=$("#fd-est"),n=$("#fd-n").value.trim(),brand=$("#fd-brand").value.trim(),u=fdUnit();
+  out.className="note estout";
+  if(!SAMPLE){out.textContent="Claude er ikke tilgjengelig her. Skriv av tallene fra pakken.";return}
+  if(!FCTX.photo&&!n){out.textContent="Skriv produktnavn eller ta bilde først.";out.classList.add("err");return}
+  btn.disabled=true;out.textContent=FCTX.photo?"Leser næringsdeklarasjonen …":"Anslår …";
+  const prompt=`Du hjelper en bruker å legge inn en matvare i en norsk kostholdsapp.
+${FCTX.photo?"Bildet viser emballasjen eller næringsdeklarasjonen. Les av tallene nøyaktig slik de står. Finn også produktnavn, merke og pakningsstørrelse hvis de er synlige.":"Anslå typiske verdier for produktet ut fra navn og merke, slik de vanligvis står på norske pakninger."}
+Produkt: ${n||"(ukjent)"}. Merke: ${brand||"(ukjent)"}. Enhet: ${u==="stk"?"per stykk":"per 100 "+u}.
+Svar bare med ett JSON-objekt: {"produkt":"","merke":"","pakning":500,"kcal":0,"protein":0,"fett":0,"karbo":0,"sikker":true}
+Næringsverdiene skal være ${u==="stk"?"per stykk":"per 100 "+u}. "pakning" er pakningsstørrelsen i ${u==="stk"?"antall stykk":u} eller 0 hvis ukjent. "sikker" er true bare når tallene er lest av et bilde.`;
+  const opts={modelTier:"default"};if(FCTX.photo)opts.images=[FCTX.photo];
+  try{
+    const r=await SAMPLE.json(prompt,opts);const num=x=>Math.max(0,Math.round((Number(x)||0)*10)/10);
+    if(!(num(r.kcal)>0))throw{code:"invalid_json"};
+    $("#fd-kcal").value=num(r.kcal);$("#fd-p").value=num(r.protein);$("#fd-f").value=num(r.fett);$("#fd-k").value=num(r.karbo);
+    if(!n&&r.produkt)$("#fd-n").value=String(r.produkt).slice(0,60);if(!brand&&r.merke)$("#fd-brand").value=String(r.merke).slice(0,40);
+    if(!$("#fd-size").value&&num(r.pakning)>0)$("#fd-size").value=num(r.pakning);
+    out.textContent=FCTX.photo?"Lest av fra bildet. Sjekk tallene mot pakken før du lagrer.":"Anslått ut fra navn og merke. Sjekk mot pakken når du har den for hånden.";
+  }catch(e){out.textContent=e&&e.code==="rate_limited"?"For mange forespørsler. Prøv igjen litt senere.":e&&e.code==="image_rejected"?"Bildet kunne ikke brukes. Prøv et annet.":"Fikk ikke lest av tallene. Skriv dem inn selv.";out.classList.add("err")}
+  finally{btn.disabled=false}
+}
+function saveFood(){
+  const g=id=>$("#"+id).value,num=id=>g(id)===""?"":Math.max(0,Math.round(+g(id)*10)/10);
+  const prev=S.foods.find(x=>x.id===FCTX.id)||{};
+  const f={...prev,id:FCTX.id,n:g("fd-n").trim(),brand:g("fd-brand").trim(),unit:fdUnit(),size:num("fd-size"),kcal:num("fd-kcal"),p:num("fd-p"),f:num("fd-f"),k:num("fd-k")};
+  const out=$("#fd-out");out.className="note estout";
+  if(!f.n){out.textContent="Skriv navnet på produktet.";out.classList.add("err");return}
+  if(!(+f.kcal>0)){out.textContent=`Fyll inn kalorier ${perLbl(f)}.`;out.classList.add("err");return}
+  if(FCTX.isNew)S.foods.push(f);else S.foods=S.foods.map(x=>x.id===f.id?f:x);
+  save();renderOppsett();const back=FCTX.returnTo;
+  if(back){logDay=back.day;openLog(back.key);showLib();pickLib(f.id);toast("Lagt i biblioteket");return}
+  closeSheet();renderOppsett();toast("Lagt i biblioteket");
+}
+function libChange(t){
+  if(t.id==="fd-photo"){const f=t.files&&t.files[0];FCTX.photo=f||null;const img=$("#fd-prev");if(f&&img){try{img.src=URL.createObjectURL(f);img.hidden=false}catch(e){}}return true}
+  if(t.name==="fd-unit"){const u=t.value;$("#fd-sizelbl").textContent=u==="stk"?"Antall stk i pakken":"Pakningsstørrelse, "+u;$("#fd-perlbl").textContent="Næringsinnhold "+(u==="stk"?"per stk":"per 100 "+u);return true}
+  if((t.id||"").startsWith("fd-")||t.id==="lib-q"||t.id==="lib-amt")return true;
+  return false;
+}
+function libClick(t){
+  const d=t.dataset;
+  if(t.id==="l-lib"){showLib();return true}
+  if(d.libpick!==undefined){pickLib(d.libpick);return true}
+  if(d.libamt!==undefined){applyLib(LIBSEL,+d.libamt);return true}
+  if(d.fedit!==undefined){openFood(d.fedit,d.fromlog==="1");return true}
+  if(t.id==="fd-est"){foodEstimate();return true}
+  if(t.id==="fd-save"){saveFood();return true}
+  if(t.id==="fd-cancel"){const b=FCTX.returnTo;if(b){logDay=b.day;openLog(b.key);showLib()}else closeSheet();return true}
+  if(d.fdel!==undefined){S.foods=S.foods.filter(x=>x.id!==d.fdel);save();closeSheet();renderOppsett();toast("Matvaren er slettet");return true}
+  return false;
 }
 
 /* ---------- Boot ---------- */
