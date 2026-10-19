@@ -1,8 +1,8 @@
-/* Matplan service worker – versjon d07947eac6 */
-const CACHE = "matplan-d07947eac6";
+/* Matplan service worker – versjon ebf53087f1 */
+const CACHE = "matplan-ebf53087f1";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png"];
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: "reload"})))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("matplan-") && k !== CACHE && k !== "matplan-fonts").map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -21,7 +21,7 @@ self.addEventListener("fetch", e => {
   }
   if (url.origin !== location.origin) return;
   if (req.mode === "navigate") {
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put("./", copy)); return r; })
+    e.respondWith(fetch(req.url, {cache: "no-store"}).then(r => { if (!r.ok) throw r; const copy = r.clone(); caches.open(CACHE).then(c => c.put("./", copy)); return r; })
       .catch(() => caches.match("./", {ignoreSearch: true}).then(r => r || caches.match("index.html"))));
     return;
   }

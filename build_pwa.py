@@ -116,7 +116,24 @@ BOOT = """
 /* Installerbar app: offline-støtte, varig lagring og snarveier */
 (function(){
   if("serviceWorker" in navigator&&location.protocol!=="file:"){
-    window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(e){console.warn("Service worker:",e)})});
+    var hadCtl=!!navigator.serviceWorker.controller,shown=false;
+    function banner(){
+      if(shown)return;shown=true;
+      var b=document.createElement("div");
+      b.setAttribute("role","status");
+      b.style.cssText="position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9999;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#1f2a24;color:#fff;font:14px/1.35 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25)";
+      b.innerHTML='<span style="flex:1">Ny versjon av Matplan er klar.</span><button style="border:0;border-radius:999px;padding:8px 14px;background:#fff;color:#1f2a24;font:600 14px system-ui,sans-serif">Oppdater</button>';
+      b.querySelector("button").onclick=function(){location.reload()};
+      document.body.appendChild(b);
+    }
+    navigator.serviceWorker.addEventListener("controllerchange",function(){if(hadCtl)banner();hadCtl=true});
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(reg){
+        function check(){reg.update().catch(function(){})}
+        document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check()});
+        setInterval(check,30*60*1000);
+      }).catch(function(e){console.warn("Service worker:",e)});
+    });
   }
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
   function fromHash(){var h=(location.hash||"").slice(1);if(["meny","liste","logg","trening","oppsett"].indexOf(h)>=0){try{setTab(h)}catch(e){}}}
@@ -129,7 +146,7 @@ SW = """/* Matplan service worker – versjon {version} */
 const CACHE = "matplan-{version}";
 const SHELL = {shell};
 self.addEventListener("install", e => {{
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {{cache: "reload"}})))).then(() => self.skipWaiting()));
 }});
 self.addEventListener("activate", e => {{
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("matplan-") && k !== CACHE && k !== "matplan-fonts").map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -148,7 +165,7 @@ self.addEventListener("fetch", e => {{
   }}
   if (url.origin !== location.origin) return;
   if (req.mode === "navigate") {{
-    e.respondWith(fetch(req).then(r => {{ const copy = r.clone(); caches.open(CACHE).then(c => c.put("./", copy)); return r; }})
+    e.respondWith(fetch(req.url, {{cache: "no-store"}}).then(r => {{ if (!r.ok) throw r; const copy = r.clone(); caches.open(CACHE).then(c => c.put("./", copy)); return r; }})
       .catch(() => caches.match("./", {{ignoreSearch: true}}).then(r => r || caches.match("index.html"))));
     return;
   }}
