@@ -18,7 +18,7 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 - **Kropp og prognose:** målinger av vekt, mage-, nakke- og hofteomkrets med fettprosent (US Navy) og sammenlikning over tid; vektprognose fra kaloribalanse med fordeling på fett og muskler ut fra protein og styrketrening
 
 - **Egne retter:** retter fra matkasse, kokebok eller nettside med næringsinnhold (oppgitt eller anslått), fast eller tilpasset porsjon og egne ingredienser i handlelisten; resten av uka justeres for kalorier og ernæring
-- **Matvarebibliotek:** egne produkter med merke, pakningsstørrelse og næringsinnhold per 100 g/ml eller per stk (tastet inn eller lest av fra bilde av næringsdeklarasjonen); i loggen velger du produktet og hvor stor andel av pakken du brukte
+- **Matvarebibliotek:** egne produkter med merke, pakningsstørrelse og næringsinnhold per 100 g/ml eller per stk (tastet inn eller lest av fra bilde av næringsdeklarasjonen); i loggen setter du sammen et måltid av ett eller flere produkter, hvert med hvor stor andel av pakken du brukte, og næringsinnholdet legges sammen
 
 Publisert som artefakt bruker appen tre tilganger: lagring på Claude-kontoen (synk mellom enheter), hvem som ser siden (for privat lagring per person) og Claude for næringsanslag. Åpnet som lokal fil lagres alt i nettleseren, og anslag gjøres grovt fra standardporsjoner.
 

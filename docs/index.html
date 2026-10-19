@@ -333,6 +333,17 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .pbtn:disabled{opacity:.35;cursor:default}
 .pstat{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
 .libsearch{width:100%}
+#l-libbox{max-height:none;overflow:visible}
+.liblist{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto}
+.libsel{display:flex;flex-direction:column;gap:6px;padding:2px 2px 4px}
+.libitem{display:flex;align-items:stretch;gap:4px;background:var(--sunk);border-radius:10px;border:1px solid transparent}
+.libitem.on{border-color:var(--ink)}
+.libitem .li-main{flex:1;display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;border:0;background:transparent;padding:7px 8px;font:inherit;color:inherit}
+.libitem small{color:var(--muted);font-size:12px}
+.libitem .num{font-size:13px;align-self:center}
+.libitem .li-del{border:0;background:transparent;color:var(--muted);width:40px;font-size:20px;line-height:1;border-radius:10px}
+.libtot{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 8px;color:var(--muted)}
+.libtot b{color:var(--ink);font-weight:500}
 .libamt{display:flex;flex-direction:column;gap:6px;padding:6px 4px 2px}
 .libamt .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .libamt input{width:90px}
@@ -1002,7 +1013,7 @@ document.addEventListener("change",e=>{
 document.addEventListener("input",e=>{
   const t=e.target;
   if(t.id==="lib-q"){renderLibList(t.value);return}
-  if(t.id==="lib-amt"){const v=+t.value;if(v>0&&LIBSEL)applyLib(LIBSEL,v,true);return}
+  if(t.id==="lib-amt"){const v=+t.value;if(v>0&&LIBSEL!=null)setItemAmt(v,true);return}
   if((t.id||"").startsWith("fd-"))return;
   if((t.id||"").startsWith("kb-")||(t.id||"").startsWith("od-")||t.id==="im-text")return;
   if(v4Input(t))return;
@@ -1160,7 +1171,7 @@ function openLog(key){
   const ex=isExtra?(xi!==null?dl.extra[xi]:null):(dl&&dl.slots[key])||null;
   const slot=isExtra?null:P.slots.find(s=>s.d===logDay&&s.meal===key);
   const recipe=slot&&slot.id?RBY[slot.id]:null;
-  LOGCTX={ds,key,xi,isExtra,src:ex?ex.src:"manual",photo:null,recipe,portion:ex&&ex.src==="plan"?ex.portion:null,note:ex?ex.note||"":"",aiName:""};
+  LOGCTX={ds,key,xi,isExtra,src:ex?ex.src:"manual",photo:null,recipe,portion:ex&&ex.src==="plan"?ex.portion:null,note:ex?ex.note||"":"",aiName:"",items:ex&&ex.src==="lib"&&ex.items?ex.items.filter(x=>(S.foods||[]).some(f=>f.id===x.id)).map(x=>({id:x.id,amt:+x.amt})):[],origIds:ex&&ex.items?ex.items.map(x=>x.id):[]};
   const v=f=>ex&&ex[f]!=null?ex[f]:"";
   const title=key==="x:kos"?"Bruk av kosekvoten":isExtra?"Legg til måltid":MEAL_LABEL[key];
   const hint=SAMPLE?"Skriv hva du spiste"+(SAMPLE_IMG?" eller ta et bilde":"")+", så anslår Claude kalorier og næringsstoffer. Du kan justere tallene før du lagrer.":"Skriv hva du spiste for et grovt anslag fra standardporsjoner, eller fyll inn tallene selv.";
@@ -1181,6 +1192,7 @@ function openLog(key){
    </div>
    <div class="actions"><button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="l-save">Lagre i loggen</button></div>`;
   $("#scrim").hidden=false;
+  if(LOGCTX.items.length)showLib(true);
 }
 function setNutr(o){$("#l-kcal").value=Math.round(o.kcal);$("#l-p").value=Math.round(o.p);$("#l-f").value=Math.round(o.f);$("#l-k").value=Math.round(o.k)}
 function pickPortion(p){
@@ -1274,7 +1286,11 @@ function saveLogEntry(){
   const dl=dayLog(c.ds,true);
   if(c.isExtra){e.type=document.querySelector('input[name="l-type"]:checked')?.value||"Mellommåltid";if(c.xi!==null)dl.extra[c.xi]=e;else dl.extra.push(e)}
   else dl.slots[c.key]=e;
-  if(c.src==="lib"&&c.libId){const f=S.foods.find(x=>x.id===c.libId);if(f){f.uses=(f.uses||0)+1;f.lastAmt=c.libAmt;save();renderOppsett()}}
+  if(c.src==="lib"&&c.items&&c.items.length){
+    e.items=c.items.map(x=>{const f=S.foods.find(y=>y.id===x.id);return{id:x.id,amt:x.amt,n:f?foodTitle(f):""}});
+    if(c.items.length>1)e.name=e.items.map(x=>x.n).join(" + ").slice(0,90);
+    c.items.forEach(x=>{const f=S.foods.find(y=>y.id===x.id);if(!f)return;if(!c.origIds.includes(x.id))f.uses=(f.uses||0)+1;f.lastAmt=x.amt});
+    save();renderOppsett()}
   saveLog(c.ds);closeSheet();renderLogg();renderMeny();toast("Lagt i loggen");
 }
 
@@ -2101,7 +2117,7 @@ function applyCopy(f){
   const x=COPYSEL;if(!x)return;const e=x.e,base=String(e.name).replace(/\s*\((¼|½|¾|1½|hele)[^)]*\)\s*$/,"");
   setNutr({kcal:e.kcal*f,p:(+e.p||0)*f,f:(+e.f||0)*f,k:(+e.k||0)*f});
   $("#l-desc").value=base+(f!==1?` (${shareLabel(f)} porsjon)`:"");
-  LOGCTX.src="copy";LOGCTX.aiName=base;
+  LOGCTX.src="copy";LOGCTX.aiName=base;LOGCTX.items=[];if($("#l-libbox"))$("#l-libbox").hidden=true;
   LOGCTX.note=`Kopiert fra ${MEAL_LABEL[x.key]||x.lbl.toLowerCase()} ${fmtDay(new Date(x.ds+"T12:00:00"))}${f!==1?`: ${shareLabel(f)} av ${nf(e.kcal)} kcal`:""}.`;
   document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));
   document.querySelectorAll("[data-lshare]").forEach(b=>b.classList.toggle("on",+b.dataset.lshare===f));
@@ -2237,42 +2253,73 @@ function libSorted(q){
   return[...(S.foods||[])].filter(f=>!q||foodTitle(f).toLowerCase().includes(q)).sort((a,b)=>(b.uses||0)-(a.uses||0)||foodTitle(a).localeCompare(foodTitle(b),"nb"));
 }
 function renderLibList(q){
-  const ul=$("#lib-list");if(!ul)return;const L=libSorted(q);
-  ul.innerHTML=L.length?L.map(f=>`<button type="button" class="ci ${LIBSEL===f.id?"on":""}" data-libpick="${f.id}"><span>${esc(foodTitle(f))}<br><small>${nf(+f.kcal||0)} kcal ${perLbl(f)}${+f.size?` · pakke ${amtLbl(f,+f.size)}`:""}</small></span><span class="num">${f.uses?f.uses+"×":""}</span></button>`).join("")
+  const ul=$("#lib-list");if(!ul)return;const L=libSorted(q),have=new Set((LOGCTX.items||[]).map(x=>x.id));
+  ul.innerHTML=L.length?L.map(f=>`<button type="button" class="ci ${have.has(f.id)?"on":""}" data-libpick="${f.id}"><span>${esc(foodTitle(f))}<br><small>${nf(+f.kcal||0)} kcal ${perLbl(f)}${+f.size?` · pakke ${amtLbl(f,+f.size)}`:""}</small></span><span class="num">${have.has(f.id)?"✓":f.uses?f.uses+"×":"+"}</span></button>`).join("")
     :`<p class="note" style="margin:4px">${(S.foods||[]).length?"Ingen treff.":"Biblioteket er tomt."}</p>`;
 }
-function showLib(){
+function showLib(force){
   const box=$("#l-libbox");if(!box)return;
-  if(!box.hidden){box.hidden=true;return}
+  if(!box.hidden&&!force){box.hidden=true;return}
   $("#l-copylist").hidden=true;LIBSEL=null;
-  box.innerHTML=`<input type="search" class="txt libsearch" id="lib-q" placeholder="Søk i biblioteket" autocomplete="off"><div id="lib-list"></div><div id="lib-amtbox" class="libamt" hidden></div><div class="actions"><button type="button" class="btn sm" data-fedit="new" data-fromlog="1">${ICON.plus}Ny matvare</button></div>`;
-  box.hidden=false;renderLibList("");
+  box.innerHTML=`<div id="lib-sel" class="libsel"></div><div id="lib-amtbox" class="libamt" hidden></div><input type="search" class="txt libsearch" id="lib-q" placeholder="Søk og legg til fra biblioteket" autocomplete="off"><div id="lib-list" class="liblist"></div><div class="actions"><button type="button" class="btn sm" data-fedit="new" data-fromlog="1">${ICON.plus}Ny matvare</button></div>`;
+  box.hidden=false;renderLibSel();renderLibList("");
+}
+const itemFood = x => (S.foods||[]).find(f=>f.id===x.id);
+function itemLbl(f,amt){
+  const size=+f.size||0,share=size&&f.unit!=="stk"?amt/size:null;
+  const sh=share!=null?LIBSH.find(x=>Math.abs(x-share)<.002):null;
+  return`${sh!=null?shLbl(sh)+" pakke, ":""}${amtLbl(f,amt)}`;
+}
+function renderLibSel(){
+  const el=$("#lib-sel");if(!el)return;const it=(LOGCTX.items||[]).filter(itemFood);
+  if(!it.length){el.innerHTML=`<p class="note" style="margin:4px">Velg ett eller flere produkter. Næringsinnholdet legges sammen til ett måltid.</p>`;return}
+  const tot=it.reduce((a,x)=>{const n=foodNutr(itemFood(x),x.amt);a.kcal+=n.kcal;a.p+=n.p;return a},{kcal:0,p:0});
+  el.innerHTML=`<span class="t">I måltidet</span>`+it.map((x,i)=>{const f=itemFood(x);return`<div class="libitem ${LIBSEL===i?"on":""}"><button type="button" class="li-main" data-libedit="${i}"><span>${esc(foodTitle(f))}<br><small>${itemLbl(f,x.amt)}</small></span><span class="num">${nf(foodNutr(f,x.amt).kcal)} kcal</span></button><button type="button" class="li-del" data-libdel="${i}" aria-label="Fjern ${esc(foodTitle(f))}">×</button></div>`}).join("")
+    +`<div class="libtot"><span>Sum ${it.length} ${it.length===1?"produkt":"produkter"}</span><b class="num">${nf(tot.kcal)} kcal · ${nf(tot.p)} g protein</b></div>`;
 }
 function pickLib(id){
-  const f=S.foods.find(x=>x.id===id);if(!f)return;LIBSEL=id;renderLibList($("#lib-q")?$("#lib-q").value:"");
+  const f=S.foods.find(x=>x.id===id);if(!f)return;const it=LOGCTX.items||(LOGCTX.items=[]);
+  let i=it.findIndex(x=>x.id===id);
+  if(i<0){it.push({id,amt:+f.lastAmt||(f.unit==="stk"?1:+f.size||100)});i=it.length-1}
+  const q=$("#lib-q");if(q)q.value="";
+  editItem(i);renderLibList("");
+}
+function editItem(i){
+  const x=LOGCTX.items[i],f=x&&itemFood(x);if(!f)return;LIBSEL=i;
   const box=$("#lib-amtbox"),size=+f.size||0;
   const chips=f.unit==="stk"?[1,2,3].map(n=>`<button type="button" class="chip-btn" data-libamt="${n}">${n} stk</button>`).join("")
     :size?LIBSH.map(sh=>`<button type="button" class="chip-btn" data-libamt="${Math.round(size*sh*10)/10}">${shLbl(sh)} pakke</button>`).join(""):"";
-  box.innerHTML=`<span class="hint">Hvor mye brukte du?</span>${chips?`<div class="chips">${chips}</div>`:""}<div class="row"><label for="lib-amt" class="hint">Mengde</label><input type="number" class="txt" id="lib-amt" inputmode="decimal" min="0" step="${f.unit==="stk"?0.5:5}"><span class="hint">${f.unit}</span></div>`;
-  box.hidden=false;
-  applyLib(id,+f.lastAmt||(f.unit==="stk"?1:size||100));
+  box.innerHTML=`<span class="hint">Hvor mye ${esc(foodTitle(f))} brukte du?</span>${chips?`<div class="chips">${chips}</div>`:""}<div class="row"><label for="lib-amt" class="hint">Mengde</label><input type="number" class="txt" id="lib-amt" inputmode="decimal" min="0" step="${f.unit==="stk"?0.5:5}" value="${Math.round(x.amt*10)/10}"><span class="hint">${f.unit}</span><button type="button" class="btn sm" id="lib-done">Ferdig</button></div>`;
+  box.hidden=false;markAmt(x.amt);applyItems();
 }
-function applyLib(id,amt,typed){
-  const f=S.foods.find(x=>x.id===id);if(!f||!(amt>0))return;
-  setNutr(foodNutr(f,amt));
-  const size=+f.size||0,share=size&&f.unit!=="stk"?amt/size:null;
-  const sh=share!=null?LIBSH.find(x=>Math.abs(x-share)<.002):null;
-  $("#l-desc").value=foodTitle(f)+` (${sh!=null?shLbl(sh)+" pakke, ":""}${amtLbl(f,amt)})`;
+function markAmt(a){document.querySelectorAll("[data-libamt]").forEach(b=>b.classList.toggle("on",Math.abs(+b.dataset.libamt-a)<.01))}
+function setItemAmt(amt,typed){
+  const x=LOGCTX.items[LIBSEL];if(!x||!(amt>0))return;x.amt=amt;
   if(!typed&&$("#lib-amt"))$("#lib-amt").value=Math.round(amt*10)/10;
-  document.querySelectorAll("[data-libamt]").forEach(b=>b.classList.toggle("on",Math.abs(+b.dataset.libamt-amt)<.01));
+  markAmt(amt);applyItems();
+}
+function closeAmt(){LIBSEL=null;const b=$("#lib-amtbox");if(b)b.hidden=true;renderLibSel()}
+function delItem(i){
+  LOGCTX.items.splice(i,1);
+  if(LIBSEL===i)closeAmt();else if(LIBSEL>i)LIBSEL--;
+  applyItems();renderLibList($("#lib-q")?$("#lib-q").value:"");
+}
+/* Legger sammen alle valgte produkter til ett måltid */
+function applyItems(){
+  const it=(LOGCTX.items||[]).filter(itemFood);renderLibSel();
+  const o=$("#l-estout");
+  if(!it.length){setNutr({kcal:0,p:0,f:0,k:0});["l-kcal","l-p","l-f","l-k"].forEach(id=>$("#"+id).value="");$("#l-desc").value="";LOGCTX.src="manual";LOGCTX.note="";o.className="note estout";o.textContent="Ingen produkter valgt.";return}
+  const t=it.reduce((a,x)=>{const n=foodNutr(itemFood(x),x.amt);for(const k in a)a[k]+=n[k];return a},{kcal:0,p:0,f:0,k:0});
+  setNutr(t);
+  $("#l-desc").value=it.map(x=>{const f=itemFood(x);return`${foodTitle(f)} (${itemLbl(f,x.amt)})`}).join(" + ");
   document.querySelectorAll("[data-portion]").forEach(b=>b.classList.remove("on"));
-  LOGCTX.src="lib";LOGCTX.libId=id;LOGCTX.libAmt=amt;LOGCTX.aiName=foodTitle(f);
-  LOGCTX.note=`Fra matvarebiblioteket: ${amtLbl(f,amt)}${share!=null?` (${Math.round(share*100)} % av pakken)`:""}, ${nf(+f.kcal)} kcal ${perLbl(f)}.`;
-  const o=$("#l-estout");o.className="note estout";o.textContent=LOGCTX.note;
+  LOGCTX.src="lib";LOGCTX.aiName=it.length===1?foodTitle(itemFood(it[0])):it.map(x=>foodTitle(itemFood(x))).join(" + ");
+  LOGCTX.note="Fra matvarebiblioteket: "+it.map(x=>{const f=itemFood(x);return`${foodTitle(f)} ${amtLbl(f,x.amt)} = ${nf(foodNutr(f,x.amt).kcal)} kcal`}).join("; ")+".";
+  o.className="note estout";o.textContent=LOGCTX.note;
 }
 function openFood(id,fromLog){
   const f=id==="new"?{id:"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:"",brand:"",unit:"g",size:"",kcal:"",p:"",f:"",k:"",note:""}:S.foods.find(x=>x.id===id);if(!f)return;
-  FCTX={id:f.id,isNew:id==="new",returnTo:fromLog?{key:LOGCTX.key,day:logDay}:null,photo:null};
+  FCTX={id:f.id,isNew:id==="new",returnTo:fromLog?{key:LOGCTX.key,day:logDay,items:(LOGCTX.items||[]).map(x=>({...x}))}:null,photo:null};
   const v=x=>x??"";
   $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Matvarebibliotek</span><h2 id="sheetTitle">${id==="new"?"Ny matvare":"Endre matvare"}</h2></div>
    <div class="field-s"><label class="t" for="fd-n">Produkt</label><input type="text" class="txt" id="fd-n" maxlength="60" placeholder="F.eks. Skyr vanilje" value="${esc(f.n)}"></div>
@@ -2322,7 +2369,7 @@ function saveFood(){
   if(!(+f.kcal>0)){out.textContent=`Fyll inn kalorier ${perLbl(f)}.`;out.classList.add("err");return}
   if(FCTX.isNew)S.foods.push(f);else S.foods=S.foods.map(x=>x.id===f.id?f:x);
   save();renderOppsett();const back=FCTX.returnTo;
-  if(back){logDay=back.day;openLog(back.key);showLib();pickLib(f.id);toast("Lagt i biblioteket");return}
+  if(back){logDay=back.day;openLog(back.key);LOGCTX.items=back.items||[];showLib(true);pickLib(f.id);toast("Lagt i biblioteket");return}
   closeSheet();renderOppsett();toast("Lagt i biblioteket");
 }
 function libChange(t){
@@ -2335,11 +2382,14 @@ function libClick(t){
   const d=t.dataset;
   if(t.id==="l-lib"){showLib();return true}
   if(d.libpick!==undefined){pickLib(d.libpick);return true}
-  if(d.libamt!==undefined){applyLib(LIBSEL,+d.libamt);return true}
+  if(d.libamt!==undefined){setItemAmt(+d.libamt);return true}
+  if(d.libedit!==undefined){const i=+d.libedit;if(LIBSEL===i)closeAmt();else editItem(i);return true}
+  if(d.libdel!==undefined){delItem(+d.libdel);return true}
+  if(t.id==="lib-done"){closeAmt();return true}
   if(d.fedit!==undefined){openFood(d.fedit,d.fromlog==="1");return true}
   if(t.id==="fd-est"){foodEstimate();return true}
   if(t.id==="fd-save"){saveFood();return true}
-  if(t.id==="fd-cancel"){const b=FCTX.returnTo;if(b){logDay=b.day;openLog(b.key);showLib()}else closeSheet();return true}
+  if(t.id==="fd-cancel"){const b=FCTX.returnTo;if(b){logDay=b.day;openLog(b.key);LOGCTX.items=b.items||[];showLib(true);if(LOGCTX.items.length)applyItems()}else closeSheet();return true}
   if(d.fdel!==undefined){S.foods=S.foods.filter(x=>x.id!==d.fdel);save();closeSheet();renderOppsett();toast("Matvaren er slettet");return true}
   return false;
 }
