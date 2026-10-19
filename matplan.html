@@ -311,6 +311,10 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .copylist .ci .num{font-size:13px;color:var(--muted);align-self:center}
 .io-prev{background:var(--sunk);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:13.5px}
 .io-prev ul{margin:0;padding-left:18px}
+.pnav{display:flex;align-items:center;gap:4px}
+.pbtn{border:0;background:var(--sunk);color:var(--ink);width:30px;height:28px;border-radius:999px;font-size:18px;line-height:1;display:grid;place-items:center}
+.pbtn:disabled{opacity:.35;cursor:default}
+.pstat{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -322,7 +326,7 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
       <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="var(--herb)" stroke-width="2.5"/><circle cx="16" cy="16" r="7.5" fill="var(--herb)" opacity=".18"/><path d="M16 9.5c3 1.8 3.6 5.2 0 7.8-3.6-2.6-3-6 0-7.8z" fill="var(--herb)"/><path d="M16 17.3v5" stroke="var(--herb)" stroke-width="2" stroke-linecap="round"/></svg>
       Matplan
     </div>
-    <span class="pill num" id="weekPill">Uke</span>
+    <div class="pnav"><button class="pbtn" data-per="-1" id="perPrev" aria-label="Forrige periode">‹</button><span class="pill num" id="weekPill">Uke</span><button class="pbtn" data-per="1" aria-label="Neste periode">›</button></div>
   </header>
 
   <main>
@@ -740,7 +744,7 @@ function renderMeny(){
   const wStatus=wShare<.08?["ok","Lite svinn"]:wShare<.16?["warn","Noe svinn"]:["over","Mye svinn"];
   const wPct=Math.min(100,wShare*100);
 
-  let h=`<div><h1>${S.days} dager, ${S.persons} ${S.persons===1?"person":"personer"}</h1>
+  let h=`<div>${periodBadge()}<h1>${S.days} dager, ${S.persons} ${S.persons===1?"person":"personer"}</h1>
   <p class="lede">${fmtShort(first)} – ${fmtShort(last)} · ${MEALS.filter(m=>S.meals[m]).map(m=>MEAL_LABEL[m].toLowerCase()).join(", ")} · ${DIETS[S.diet].toLowerCase()}</p></div>
   <div class="summary">
     <div class="stats">
@@ -907,12 +911,13 @@ function swapSlot(idx){
 }
 function newPlan(seed){P=generate(seed??Math.floor(Math.random()*1e9));checked={};save();renderAll()}
 function persistLocal(){store.set("settings",S);store.set("plan",P);store.set("checked",checked);store.set("skips",skips);store.set("meta",META)}
-function save(){META.updatedAt=Date.now();persistLocal();queueState()}
+function save(){META.updatedAt=Date.now();persistLocal();queueState();stashCurrent();savePeriods()}
 let tt; function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2200)}
 function setTab(t){tab=t;["meny","liste","logg","trening","oppsett"].forEach(x=>$("#v-"+x).hidden=x!==t);document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));store.set("tab",t);window.scrollTo(0,0)}
 function renderAll(){
   const first=addDays(S.start,0),last=addDays(S.start,S.days-1);
   const w1=isoWeek(first),w2=isoWeek(last); $("#weekPill").textContent=w1===w2?"Uke "+w1:"Uke "+w1+"–"+w2;
+  {const ps=sortedPeriods(),i=ps.findIndex(p=>p.start===S.start);$("#perPrev").disabled=i<=0}
   ADAPT=undefined;syncKcal();PPROF=null;WADJ=weekAdj();SIM=simulate(P.slots);renderMeny();renderListe();renderLogg();renderTrening();renderOppsett();
 }
 
@@ -939,10 +944,11 @@ document.addEventListener("click",e=>{
   if(ownClick(t))return;
   if(copyClick(t))return;
   if(ioClick(t))return;
+  if(t.dataset.per!==undefined){navPeriod(t.dataset.per==="today"?"today":+t.dataset.per);return}
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
-  if(t.dataset.step){const k=t.dataset.step,lim={days:[1,14],persons:[1,8]}[k];S[k]=Math.min(lim[1],Math.max(lim[0],S[k]+ +t.dataset.d));$("#o-"+k).textContent=S[k];updateHints();save();return}
+  if(t.dataset.step){const k=t.dataset.step,lim={days:[1,14],persons:[1,8]}[k];S[k]=Math.min(lim[1],Math.max(lim[0],S[k]+ +t.dataset.d));$("#o-"+k).textContent=S[k];updateHints();if(k==="days"){P=generate(Math.floor(Math.random()*1e9));logDay=null;save();renderAll();return}save();return}
   if(t.id==="makePlan"){newPlan();setTab("meny");toast("Menyen og handlelisten er oppdatert")}
 });
 $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()});
@@ -957,7 +963,7 @@ document.addEventListener("change",e=>{
   if(t.id==="l-photo"){pickPhoto(t);return}
   if(t.name==="l-type"||t.name==="sk-r"||t.name==="sk-rep"||(t.id&&/^(l-|sk-)/.test(t.id)))return;
   if(t.dataset.check){checked[t.dataset.check]=t.checked;save();renderListe();return}
-  if(t.id==="f-start"&&t.value)S.start=t.value;
+  if(t.id==="f-start"&&t.value&&t.value!==S.start){delete PERIODS[S.start];S.start=t.value;checked={};P=generate(Math.floor(Math.random()*1e9));logDay=null;save();renderAll();toast("Perioden er flyttet og menyen laget på nytt");return}
   if(t.id==="f-budget")S.budget=Math.max(100,+t.value||S.budget);
   if(t.id==="f-kcal")S.kcal=Math.min(4500,Math.max(1200,+t.value||S.kcal));
   if(t.dataset.meal){S.meals[t.dataset.meal]=t.checked;if(!MEALS.some(m=>S.meals[m])){S.meals[t.dataset.meal]=true;t.checked=true;toast("Velg minst ett måltid")}}
@@ -1262,6 +1268,8 @@ async function loadMonth(m){
   }catch(e){cloud.loaded.delete(m)}
 }
 function ensurePlan(){
+  const past=iso(addDays(S.start,S.days-1))<iso(new Date());
+  if(P&&P.slots&&past){P.slots.forEach(s=>{if(s.id&&!RBY[s.id])s.id=null});if(P.slots.length)return applySkipsToPlan()}
   if(!P||!P.slots||P.sig!==sig()||P.slots.some(s=>s.id&&!RBY[s.id]))P=generate(20261012);
   applySkipsToPlan();
 }
@@ -1279,6 +1287,10 @@ async function initCloud(){
       S=Object.assign({},DEFAULTS,d.settings||{});normalizeS();
       P=d.plan||null;checked=d.checked||{};skips=d.skips||{};META.updatedAt=d.updatedAt;ensurePlan();persistLocal();
     } else queueState();
+    try{const ps=await db.doc(`data/users/${uid}/periods`).get();
+      if(ps.exists&&(ps.data().updatedAt||0)>(PMETA.updatedAt||0)){const d=clean(ps.data());PERIODS=d.periods||{};PMETA.updatedAt=d.updatedAt;store.set("periods",PERIODS);store.set("periodsMeta",PMETA)}
+      else if(PMETA.updatedAt)savePeriods(true);}catch(e){}
+    rollPeriods(true);
     const months=new Set([...Object.keys(LOG),monthOf(iso(addDays(S.start,0))),monthOf(iso(addDays(S.start,S.days-1))),monthOf(iso(new Date()))]);
     for(const m of months)await loadMonth(m);
     renderAll();
@@ -2076,7 +2088,7 @@ function copyClick(t){
 
 /* ---------- Sikkerhetskopi: eksport og import ---------- */
 let IMPORT=null;
-function exportJSON(){return JSON.stringify({app:"matplan",format:1,exported:new Date().toISOString(),settings:S,plan:P,checked,skips,log:LOG})}
+function exportJSON(){stashCurrent();return JSON.stringify({app:"matplan",format:1,exported:new Date().toISOString(),settings:S,plan:P,checked,skips,log:LOG,periods:PERIODS})}
 function ioCard(){
   return`<div class="card"><div class="field"><span class="t">Sikkerhetskopi og flytting</span>
     <span class="hint">Lagre alt du har lagt inn (innstillinger, meny, logg, trening, målinger og egne retter) i én fil, og les den inn på en annen enhet, for eksempel fra PC-en til appen på telefonen.</span>
@@ -2116,6 +2128,7 @@ function applyImport(mode){
     S=Object.assign({},DEFAULTS,s,keep);P=o.plan||P;checked={...checked,...(o.checked||{})};skips={...skips,...(o.skips||{})};
     Object.entries(o.log||{}).forEach(([m,days])=>{LOG[m]=LOG[m]||{};Object.entries(days).forEach(([ds,dl])=>{LOG[m][ds]=dl})});
   }
+  if(o.periods){if(mode==="replace")PERIODS=o.periods;else Object.assign(PERIODS,o.periods)}
   normalizeS();{const lw=bodySorted().filter(m=>+m.w>0).slice(-1)[0];if(lw)S.me.w=+lw.w}syncKcal();ensurePlan();
   const now=Date.now();META.updatedAt=now;Object.keys(LOG).forEach(m=>{LOGMETA[m]=now;cloud.loaded.add(m)});
   persistLocal();store.set("log",LOG);store.set("logmeta",LOGMETA);queueState();Object.keys(LOG).forEach(m=>queueLog(m));
@@ -2129,6 +2142,51 @@ function ioClick(t){
   return false;
 }
 
+/* ---------- Perioder: arkiv, automatisk ny periode og navigering ---------- */
+let PERIODS=store.get("periods",{}), PMETA=store.get("periodsMeta",{updatedAt:0}), VIEW_CHOSEN=false;
+const periodEnd = p => iso(addDays(p.start,p.days-1));
+const daysBetween = (a,b) => Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+function stashCurrent(){if(P&&P.slots&&S.start)PERIODS[S.start]={seed:P.seed,slots:clean(P.slots),sig:P.sig,start:S.start,days:S.days,checked:clean(checked||{})}}
+function savePeriods(onlyCloud){
+  if(!onlyCloud){const cut=iso(addDays(iso(new Date()),-400));Object.keys(PERIODS).forEach(k=>{if(k<cut)delete PERIODS[k]});PMETA.updatedAt=Date.now()}
+  store.set("periods",PERIODS);store.set("periodsMeta",PMETA);
+  cloudWrite("periods",()=>clean({periods:PERIODS,updatedAt:PMETA.updatedAt}));
+}
+function sortedPeriods(){stashCurrent();return Object.values(PERIODS).sort((a,b)=>a.start<b.start?-1:1)}
+function loadPeriod(start){
+  stashCurrent();const p=PERIODS[start];if(!p)return;
+  S.start=p.start;S.days=p.days;P={seed:p.seed,slots:clean(p.slots),sig:p.sig};checked=clean(p.checked||{});
+  logDay=null;ensurePlan();save();renderAll();window.scrollTo(0,0);
+}
+function createPeriod(start,days,quiet){
+  stashCurrent();S.start=start;S.days=days;checked={};P=generate(Math.floor(Math.random()*1e9));logDay=null;
+  stashCurrent();if(!quiet){save();renderAll();window.scrollTo(0,0)}
+}
+/* Ved oppstart: lag en ny periode hvis dagens dato er etter siste periode, og vis perioden som inneholder i dag. */
+function rollPeriods(quiet){
+  const today=iso(new Date());const ps=sortedPeriods();if(!ps.length)return;
+  let cur=ps.find(p=>p.start<=today&&periodEnd(p)>=today),rolled=false;
+  if(!cur){const last=ps[ps.length-1];
+    if(periodEnd(last)<today){const len=S.days||last.days;const k=Math.floor(daysBetween(last.start,today)/len);
+      const start=k*len>=last.days?iso(addDays(last.start,k*len)):iso(addDays(periodEnd(last),1));
+      createPeriod(start,len,true);cur=PERIODS[start];rolled=true}}
+  if(cur&&!VIEW_CHOSEN&&cur.start!==S.start){const p=cur;S.start=p.start;S.days=p.days;P={seed:p.seed,slots:clean(p.slots),sig:p.sig};checked=clean(p.checked||{});logDay=null;ensurePlan()}
+  if(rolled){META.updatedAt=Date.now();persistLocal();queueState();savePeriods();setTimeout(()=>toast("Ny periode er laget: "+fmtShort(addDays(S.start,0))+" – "+fmtShort(addDays(S.start,S.days-1))),400)}
+}
+function periodState(){const t=iso(new Date());return periodEnd({start:S.start,days:S.days})<t?"past":S.start>t?"future":"current"}
+function periodBadge(){
+  const st=periodState();
+  const lbl={past:"Tidligere periode",future:"Planlagt periode",current:"Denne perioden"}[st];
+  return`<div class="pstat"><span class="status ${st==="current"?"ok":st==="future"?"warn":""}">${lbl}</span>${st!=="current"?`<button class="btn sm" data-per="today">Gå til i dag</button>`:""}</div>`;
+}
+function navPeriod(dir){
+  VIEW_CHOSEN=true;const ps=sortedPeriods();const i=ps.findIndex(p=>p.start===S.start);
+  if(dir==="today"){VIEW_CHOSEN=false;const t=iso(new Date());const c=ps.find(p=>p.start<=t&&periodEnd(p)>=t);if(c)loadPeriod(c.start);else{rollPeriods();renderAll()}return}
+  if(dir<0){if(i>0)loadPeriod(ps[i-1].start);return}
+  if(i<ps.length-1)return loadPeriod(ps[i+1].start);
+  const start=iso(addDays(periodEnd({start:S.start,days:S.days}),1));createPeriod(start,S.days);toast("Neste periode er planlagt");
+}
+
 /* ---------- Boot ---------- */
-syncKcal(); ensurePlan(); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
+syncKcal(); ensurePlan(); rollPeriods(true); persistLocal(); renderAll(); setTab(store.get("tab","meny")); initCloud();
 </script>
