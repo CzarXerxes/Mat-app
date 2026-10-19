@@ -1,9 +1,10 @@
-/* Matplan service worker – versjon f0851e0593 */
-const CACHE = "matplan-f0851e0593";
+/* Matplan service worker – versjon 75fdf5c130 */
+const CACHE = "matplan-75fdf5c130";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: "reload"})))).then(() => self.skipWaiting()));
 });
+self.addEventListener("message", e => { if (e.data === "skipWaiting") self.skipWaiting(); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("matplan-") && k !== CACHE && k !== "matplan-fonts").map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });

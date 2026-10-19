@@ -901,8 +901,9 @@ function renderOppsett(){
   ${foodLibCard()}
   <div class="card"><div class="field"><span class="t">Måltider som ikke skal planlegges</span><span class="hint">Trykk på et måltid for å ta det ut av menyen, for eksempel middag på restaurant eller frokost på en konferanse. Trykk igjen for å planlegge det likevel. Gjelder menyen som er laget nå.</span>${skipMatrix()}</div></div>
   <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>
-  ${ioCard()}`;
-  el.innerHTML=h;
+  ${ioCard()}
+  ${appVerCard()}`;
+  el.innerHTML=h;fillAppVer();
 }
 function stepper(key,val,lbl){return`<div class="stepper" role="group" aria-labelledby="${lbl}"><button type="button" data-step="${key}" data-d="-1" aria-label="Færre">−</button><output class="num" id="o-${key}">${val}</output><button type="button" data-step="${key}" data-d="1" aria-label="Flere">+</button></div>`}
 
@@ -980,6 +981,7 @@ document.addEventListener("click",e=>{
   if(copyClick(t))return;
   if(libClick(t))return;
   if(ioClick(t))return;
+  if(t.id==="upd-check"){checkUpdate();return}
   if(t.dataset.per!==undefined){navPeriod(t.dataset.per==="today"?"today":+t.dataset.per);return}
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
@@ -2392,6 +2394,27 @@ function libClick(t){
   if(t.id==="fd-cancel"){const b=FCTX.returnTo;if(b){logDay=b.day;openLog(b.key);LOGCTX.items=b.items||[];showLib(true);if(LOGCTX.items.length)applyItems()}else closeSheet();return true}
   if(d.fdel!==undefined){S.foods=S.foods.filter(x=>x.id!==d.fdel);save();closeSheet();renderOppsett();toast("Matvaren er slettet");return true}
   return false;
+}
+
+/* ---------- Appversjon og oppdatering (bare i installert app) ---------- */
+const swOn = () => "serviceWorker" in navigator && !!navigator.serviceWorker.controller;
+function appVerCard(){
+  if(!swOn())return"";
+  return`<div class="card"><div class="field"><span class="t">Appversjon</span><span class="hint" id="appver">Versjon …</span><div class="actions"><button class="btn" id="upd-check">Se etter oppdatering</button></div><p class="note" id="upd-out" hidden></p></div></div>`;
+}
+async function appVersion(){try{const k=(await caches.keys()).filter(x=>/^matplan-[0-9a-f]{10}$/.test(x));return k.length?k[k.length-1].slice(8):null}catch(e){return null}}
+async function fillAppVer(){const el=$("#appver");if(!el)return;const v=await appVersion();if($("#appver"))$("#appver").textContent=v?"Versjon "+v:"Versjon ukjent"}
+async function checkUpdate(){
+  const out=$("#upd-out"),btn=$("#upd-check");out.hidden=false;out.className="note";btn.disabled=true;out.textContent="Ser etter ny versjon …";
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();if(!reg)throw 0;
+    await reg.update();
+    const nw=reg.installing||reg.waiting;
+    if(nw){out.textContent="Ny versjon funnet. Den lastes ned, og du får beskjed når den er klar.";
+      if(reg.waiting)reg.waiting.postMessage&&reg.waiting.postMessage("skipWaiting");}
+    else out.textContent="Du har nyeste versjon som er publisert. Har du nettopp kjørt git push, kan GitHub bruke noen minutter før den er ute.";
+  }catch(e){out.textContent="Fikk ikke sjekket. Er telefonen på nett?";out.classList.add("err")}
+  finally{btn.disabled=false;fillAppVer()}
 }
 
 /* ---------- Boot ---------- */
