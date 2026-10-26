@@ -347,6 +347,28 @@ select.sel,.sel{background:var(--sunk);border:1px solid var(--line);border-radiu
 .libamt{display:flex;flex-direction:column;gap:6px;padding:6px 4px 2px}
 .libamt .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .libamt input{width:90px}
+.exhead{display:flex;justify-content:space-between;align-items:baseline}
+.exlist{display:flex;flex-direction:column;gap:10px}
+.excard{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.excard .exname{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+.exprev{font-size:12px;color:var(--muted)}
+.sets{display:flex;flex-direction:column;gap:6px}
+.setrow{display:grid;grid-template-columns:44px 1fr auto 1fr auto 32px;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.setrow input{width:100%;min-width:0;text-align:center;padding:8px 4px}
+.setrow .sn{font-family:var(--f-mono);font-size:12px}
+.exsum{display:flex;flex-direction:column;gap:2px;margin-top:4px;font-size:13px}
+.exsum span{display:flex;justify-content:space-between;gap:8px}
+.exsum b{font-weight:500}
+.exsum .num{color:var(--muted);text-align:right}
+.exhist{display:flex;flex-direction:column}
+.exhist .exrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 2px;border-top:1px solid var(--line)}
+.exhist .exrow:first-child{border-top:0}
+.exhist small{color:var(--muted);font-size:12px}
+.manual-slot{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.manual-slot:first-child{border-top:0}
+.manual-slot .ms-head{display:flex;flex-direction:column;gap:3px}
+.manual-slot .mname{color:var(--muted)}
+.stat .v.neg{color:var(--bad)}
 .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:30;box-shadow:var(--shadow)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -600,7 +622,7 @@ function macroPct(r){const e=kcal(r),[p,f,k]=r.mac;return{p:p*4/e*100,f:f*9/e*10
 function macroDist(r,prof){const m=macroPct(r);return(Math.abs(m.p-prof.p)+Math.abs(m.f-prof.f)+Math.abs(m.k-prof.k))/100}
 
 /* ---------- State ---------- */
-const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[],ownDishes:[],ownPlaced:{},foods:[]};
+const DEFAULTS = {start:nextMonday(),days:7,persons:2,budget:900,meals:{frokost:false,lunsj:false,middag:true},tWeek:40,tWeekend:75,profile:"balansert",diet:"alt",allergies:{gluten:false,laktose:false,egg:false},kcal:2200,smartRest:true,me:{sex:"",age:"",h:"",w:"",pal:1.375,goal:0,auto:true,inclTrain:true,targetW:"",adaptive:true},exFactor:75,scalePortion:true,split:{frokost:20,lunsj:25,middag:35,snacks:10},snacks:[{id:"banan"},{id:"skyr"}],program:[],body:[],ownDishes:[],ownPlaced:{},foods:[],autoPlan:true};
 let S = Object.assign({},DEFAULTS,store.get("settings",{}));
 normalizeS();
 let P = store.get("plan",null);
@@ -680,6 +702,7 @@ function generate(seed){
     for(const meal of MEALS){if(!S.meals[meal])continue;
       if(skips[iso(date)+"|"+meal]){slots.push({d,meal,id:null,skip:true});continue}
       {const op=S.ownPlaced[iso(date)+"|"+meal];if(op&&RBY["own:"+op]){slots.push({d,meal,id:"own:"+op,own:true});used["own:"+op]=1;continue}}
+      if(S.autoPlan===false){slots.push({d,meal,id:null,manual:true});continue}
       const{list,relaxed}=candidates(meal,maxT);
       if(!list.length){slots.push({d,meal,id:null});continue}
       const ranked=list.map(r=>({r,s:score(r,meal,used,prevPr,inv,d)})).sort((a,b)=>a.s-b.s);
@@ -729,7 +752,7 @@ function repairBudget(slots){
     if(!best)break;slots[best.idx].id=best.id;
   }
 }
-function sig(){return JSON.stringify([S.start,S.days,S.persons,S.meals,S.diet,S.allergies,S.profile,S.smartRest,2])}
+function sig(){return JSON.stringify([S.start,S.days,S.persons,S.meals,S.diet,S.allergies,S.profile,S.smartRest,S.autoPlan!==false,2])}
 
 /* ---------- Shopping list ---------- */
 function shoppingList(){
@@ -772,7 +795,7 @@ function renderMeny(){
   const over=cost>S.budget; const pct=Math.min(100,cost/S.budget*100);
   const dist=(Math.abs(mp.p-prof.p)+Math.abs(mp.f-prof.f)+Math.abs(mp.k-prof.k));
   const nutStatus=dist<12?["ok","Treffer ernæringsprofilen"]:dist<24?["warn","Nær ernæringsprofilen"]:["over","Avviker fra ernæringsprofilen"];
-  const relaxed=P.slots.filter(s=>s.relaxed).length, missing=P.slots.filter(s=>!s.id&&!s.skip).length, skipped=P.slots.filter(s=>s.skip).length;
+  const relaxed=P.slots.filter(s=>s.relaxed).length, missing=P.slots.filter(s=>!s.id&&!s.skip&&!s.manual).length, skipped=P.slots.filter(s=>s.skip).length;
   const restMeals=SIM.info.filter(i=>i&&i.rest.length).length;
   const wv=SIM.wasteVal, wShare=cost?wv/cost:0;
   const wStatus=wShare<.08?["ok","Lite svinn"]:wShare<.16?["warn","Noe svinn"]:["over","Mye svinn"];
@@ -806,7 +829,8 @@ function renderMeny(){
     </div>
     ${relaxed||missing?`<span class="note flag">${missing?missing+" måltid mangler oppskrift som passer kostholdet. ":""}${relaxed?relaxed+" måltid tar lengre tid enn tidsgrensen.":""}</span>`:""}
     ${skipped?`<span class="note">${skipped} ${skipped===1?"måltid er":"måltider er"} tatt ut av menyen og handlelisten. Endre det under Oppsett eller ved å trykke på måltidet.</span>`:""}
-    ${ownSummary()}<div class="actions"><button class="btn" id="reroll">${ICON.dice}Ny variant</button><button class="btn" data-ownnew="">${ICON.plus}Egen rett</button><button class="btn" data-go="liste">Se handleliste</button></div>
+    ${S.autoPlan===false?`<span class="note">Automatisk planlegging er slått av. Velg retter selv, foreslå en rett for et måltid, eller legg inn egne retter. Handlelisten og budsjettet gjelder bare rettene som står i menyen.</span>`:""}
+    ${ownSummary()}<div class="actions">${S.autoPlan===false?"":`<button class="btn" id="reroll">${ICON.dice}Ny variant</button>`}<button class="btn" data-ownnew="">${ICON.plus}Egen rett</button><button class="btn" data-go="liste">Se handleliste</button></div>
   </div>`;
   for(let d=0;d<S.days;d++){
     const date=addDays(S.start,d); const wk=date.getDay()===0||date.getDay()===6;
@@ -817,6 +841,7 @@ function renderMeny(){
       if(s.skip){const sk=skips[slotKey(s)]||{r:"annet"};
         h+=`<div class="meal skipped"><button class="meal-main" data-skipopen="${s.idx}"><span class="mtype">${MEAL_LABEL[s.meal]} · ikke planlagt</span><span class="mname">${esc(REASONS[sk.r]||"Annet")}</span>${sk.note?`<span class="mmeta">${esc(sk.note)}</span>`:""}${loggedTag(s)}</button>
         <button class="swap" data-unskip="${s.idx}" aria-label="Planlegg ${MEAL_LABEL[s.meal].toLowerCase()} likevel" title="Planlegg likevel">${ICON.plus}</button></div>`;return}
+      if(!s.id&&S.autoPlan===false){h+=`<div class="manual-slot"><div class="ms-head"><span class="mtype">${MEAL_LABEL[s.meal]}</span><span class="mname">Ingen rett valgt</span>${loggedTag(s)}</div><div class="actions"><button class="btn sm" data-swap="${s.idx}">${ICON.spark}Foreslå rett</button><button class="btn sm" data-ownpick="${s.idx}">${ICON.plus}Egen rett</button><button class="btn sm" data-skipopen="${s.idx}">${ICON.skip}Ikke planlegg</button></div></div>`;return}
       if(!s.id){h+=`<div class="empty-slot">${MEAL_LABEL[s.meal]}: ingen oppskrift passer valgene dine.</div>`;return}
       const r=RBY[s.id]; const info=SIM.info[s.idx];
       const rest=info&&info.rest.length?`<span class="rest">${ICON.leaf}Bruker rest: ${info.rest.map(id=>short(ING[id])).join(", ")}</span>`:"";
@@ -877,6 +902,7 @@ function renderOppsett(){
       <span class="hint num" id="h-budget">≈ ${nf(perPD)} kr per person per dag</span></div>
   </div>
   <div class="card">
+    <div class="field"><span class="t">Menyplanlegging</span><div class="chips"><label class="chip"><input type="checkbox" id="f-autoplan" ${S.autoPlan!==false?"checked":""}><span>Planlegg måltider automatisk</span></label></div><span class="hint">${S.autoPlan!==false?"Appen velger retter ut fra budsjett, tid, ernæring og rester. Du kan bytte enkeltretter og legge inn egne.":"Menyen er tom til du velger retter selv. Logg, kaloribehov, kosekvote og trening virker som før."}</span></div>
     <div class="field"><span class="t">Måltider</span><div class="chips">${MEALS.map(m=>`<label class="chip"><input type="checkbox" id="f-meal-${m}" data-meal="${m}" ${S.meals[m]?"checked":""}><span>${MEAL_LABEL[m]}</span></label>`).join("")}</div></div>
     <div class="field"><div class="field-row"><label class="t" for="f-tweek">Maks tid på hverdager</label><output class="num" id="o-tweek">${S.tWeek} min</output></div><input type="range" id="f-tweek" min="10" max="90" step="5" value="${S.tWeek}"></div>
     <div class="field"><div class="field-row"><label class="t" for="f-tweekend">Maks tid i helgen</label><output class="num" id="o-tweekend">${S.tWeekend} min</output></div><input type="range" id="f-tweekend" min="10" max="120" step="5" value="${S.tWeekend}"></div>
@@ -900,7 +926,7 @@ function renderOppsett(){
   ${ownLibCard()}
   ${foodLibCard()}
   <div class="card"><div class="field"><span class="t">Måltider som ikke skal planlegges</span><span class="hint">Trykk på et måltid for å ta det ut av menyen, for eksempel middag på restaurant eller frokost på en konferanse. Trykk igjen for å planlegge det likevel. Gjelder menyen som er laget nå.</span>${skipMatrix()}</div></div>
-  <button class="btn primary block" id="makePlan">Lag meny og handleliste</button>
+  <button class="btn primary block" id="makePlan">${S.autoPlan===false?"Tøm menyen":"Lag meny og handleliste"}</button>
   ${ioCard()}
   ${appVerCard()}`;
   el.innerHTML=h;fillAppVer();
@@ -921,7 +947,7 @@ function openRecipe(idx){
    <ul class="ilist">${r.i.map(([id,a])=>{const g=ING[id];return`<li><span>${esc(g.n)}${info.rest.includes(id)?'<span class="from">fra rest</span>':""}</span><span>${fmtRecipeAmt(g,a*totalPortions(r,s.meal,s.d))}</span></li>`}).join("")}</ul>
    <h3>Slik gjør du</h3>
    <ol class="steps">${r.s.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>
-   <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn" data-ownpick="${idx}">${ICON.plus}Bytt til egen rett</button><button class="btn primary" id="closeSheet">Lukk</button></div>`;
+   <div class="actions"><button class="btn" data-swap="${idx}" data-close>${ICON.swap}Bytt rett</button><button class="btn" data-skipopen="${idx}">${ICON.skip}Ikke planlegg</button><button class="btn" data-ownpick="${idx}">${ICON.plus}Bytt til egen rett</button>${S.autoPlan===false?`<button class="btn" data-clearslot="${idx}" data-close>Fjern fra menyen</button>`:""}<button class="btn primary" id="closeSheet">Lukk</button></div>`;
   $("#scrim").hidden=false; $("#closeSheet").focus();
 }
 function fmtRecipeAmt(g,a){
@@ -984,10 +1010,11 @@ document.addEventListener("click",e=>{
   if(t.id==="upd-check"){checkUpdate();return}
   if(t.dataset.per!==undefined){navPeriod(t.dataset.per==="today"?"today":+t.dataset.per);return}
   if(t.id==="reroll"){newPlan();return toast("Ny variant av menyen er klar")}
+  if(t.dataset.clearslot!==undefined){if(t.hasAttribute("data-close"))closeSheet();const sl=P.slots[+t.dataset.clearslot];if(sl){sl.id=null;sl.manual=true;save();renderAll();toast("Retten er fjernet fra menyen")}return}
   if(t.id==="clearChecks"){checked={};save();return renderListe()}
   if(t.id==="copyList")return copyList();
   if(t.dataset.step){const k=t.dataset.step,lim={days:[1,14],persons:[1,8]}[k];S[k]=Math.min(lim[1],Math.max(lim[0],S[k]+ +t.dataset.d));$("#o-"+k).textContent=S[k];updateHints();if(k==="days"){P=generate(Math.floor(Math.random()*1e9));logDay=null;save();renderAll();return}save();return}
-  if(t.id==="makePlan"){newPlan();setTab("meny");toast("Menyen og handlelisten er oppdatert")}
+  if(t.id==="makePlan"){newPlan();setTab("meny");toast(S.autoPlan===false?"Menyen er tømt":"Menyen og handlelisten er oppdatert")}
 });
 $("#scrim").addEventListener("click",e=>{if(e.target.id==="scrim")closeSheet()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#scrim").hidden)closeSheet()});
@@ -1009,6 +1036,7 @@ document.addEventListener("change",e=>{
   if(t.name==="profile")S.profile=t.value;
   if(t.name==="diet")S.diet=t.value;
   if(t.id==="f-smart")S.smartRest=t.checked;
+  if(t.id==="f-autoplan"){S.autoPlan=t.checked;P=generate(Math.floor(Math.random()*1e9));checked={};save();renderAll();toast(t.checked?"Menyen er planlagt automatisk":"Automatisk planlegging er slått av");return}
   if(t.dataset.al)S.allergies[t.dataset.al]=t.checked;
   updateHints(); save();
 });
@@ -1121,6 +1149,8 @@ function renderLogg(){
   const dl=dayLog(ds), tot=dayTotals(dl), prof=PROFILES[S.profile];
   const goalK=S.kcal+trainDelta(ds);const tg={p:goalK*prof.p/100/4,f:goalK*prof.f/100/9,k:goalK*prof.k/100/4};
   const daySlots=P.slots.map((s,idx)=>({...s,idx})).filter(s=>s.d===logDay);
+  const kosEaten=((dl&&dl.extra)||[]).filter(e=>e.type==="Kos").reduce((a,e)=>a+(+e.kcal||0),0);
+  const leftBase=S.kcal*(1-kosShare()/100)-(tot.kcal-kosEaten);
   const remaining=daySlots.filter(s=>s.id&&!(dl&&dl.slots[s.meal])).reduce((a,s)=>a+kcal(RBY[s.id])*myPortion(RBY[s.id],s.meal,s.d),0);
   let loggedDays=0,sumK=0;
   for(let d=0;d<S.days;d++){const t=dayTotals(dayLog(iso(addDays(S.start,d))));if(t.n){loggedDays++;sumK+=t.kcal}}
@@ -1133,7 +1163,7 @@ function renderLogg(){
     <div class="stats">
       <div class="stat"><span class="k">Spist</span><span class="v">${nf(tot.kcal)}<small> kcal</small></span></div>
       <div class="stat"><span class="k">Mål${trainDelta(ds)<0?" − trening ikke gjennomført":trainDelta(ds)>0?" + ekstra trening":""}</span><span class="v">${nf(goal)}<small> kcal</small></span></div>
-      <div class="stat"><span class="k">Planlagt igjen</span><span class="v">${nf(remaining)}<small> kcal</small></span></div>
+      <div class="stat"><span class="k">Igjen utenom kos</span><span class="v ${leftBase<0?"neg":""}">${nf(leftBase)}<small> kcal</small></span></div>
     </div>
     <div class="meter">
       <div class="meter-head"><span class="lbl">${cap(fmtDay(date))}</span><span class="val num">${Math.round(tot.kcal/goal*100)} % av dagsbehovet</span></div>
@@ -1354,6 +1384,7 @@ function normalizeS(){
   if(!Array.isArray(S.body))S.body=[];
   if(!Array.isArray(S.ownDishes))S.ownDishes=[];
   if(!Array.isArray(S.foods))S.foods=[];
+  if(typeof S.autoPlan!=="boolean")S.autoPlan=true;
   if(!S.ownPlaced||typeof S.ownPlaced!=="object")S.ownPlaced={};
   registerOwn();
   if(S.exFactor==null)S.exFactor=DEFAULTS.exFactor;
@@ -1540,6 +1571,7 @@ function renderTrening(){
   done.forEach((x,i)=>{if(x.planId&&pl.some(p=>p.id===x.planId))return;h+=`<div class="lcard"><div class="lhead"><span class="mtype">Økt</span></div>${sessHtml(x,i)}</div>`});
   if(!pl.length&&!done.length)h+=`<p class="note">Ingen økter planlagt denne dagen.</p>`;
   h+=`<button class="btn" data-topen="x:new">${ICON.plus}Logg en økt</button>`;
+  h+=exHistoryHtml();
   h+=`<h2 class="section-h">Treningsprogram</h2><div class="card" style="padding-block:6px">${S.program.length?S.program.map(p=>`<div class="prog"><div><b>${esc(sessName(p))}</b><div class="sess-meta">${p.dows.map(d=>DOWS[d-1]).join(", ")} · ${p.min} min · ${INTS[p.int].toLowerCase()} · ≈ ${nf(sessKcal(p))} kcal${p.note?" · "+esc(p.note):""}</div></div><div class="actions"><button class="btn sm" data-popen="${p.id}">Endre</button></div></div>`).join(""):'<p class="note">Ingen økter i programmet ennå.</p>'}</div>
   <button class="btn" data-popen="new">${ICON.plus}Legg til økt i programmet</button>`;
   el.innerHTML=h;
@@ -1547,7 +1579,7 @@ function renderTrening(){
 function sessHtml(x,i){
   if(x.skipped){const ds=iso(addDays(S.start,logDay));return`<div class="lentry"><div><b>${esc(sessName(x))}</b><span class="srctag skip">Hoppet over</span></div><span class="lnum">${trainInEnergy()?`−${nf(plannedBonus(ds))} kcal fra kosekvoten`:"Ingen endring i kosekvoten"}</span></div><div class="actions"><button class="btn sm" data-tdel="${i}">Angre</button></div>`}
   return`<div class="lentry"><div><b>${esc(sessName(x))}</b><span class="srctag">${x.kcal!=null&&x.kcal!==""?"Oppgitt":"Anslått"}</span></div>
-    <span class="lnum num">${x.min} min · ${INTS[x.int??1].toLowerCase()} · ${nf(sessKcal(x))} kcal</span>${x.note?`<p class="note">${esc(x.note)}</p>`:""}</div>
+    <span class="lnum num">${x.min} min · ${INTS[x.int??1].toLowerCase()} · ${nf(sessKcal(x))} kcal</span>${exSummaryHtml(x.ex)}${x.note?`<p class="note">${esc(x.note)}</p>`:""}</div>
     <div class="actions"><button class="btn sm" data-topen="i:${i}">Endre</button><button class="btn sm" data-tdel="${i}">Fjern</button></div>`;
 }
 function actSelect(id,val){return`<select class="sel" id="${id}">${Object.entries(ACTS).map(([k,a])=>`<option value="${k}" ${val===k?"selected":""}>${a.n}</option>`).join("")}</select>`}
@@ -1584,20 +1616,23 @@ function openSession(key){
   if(key.startsWith("p:")){planId=key.slice(2);const p=S.program.find(q=>q.id===planId);if(!p)return;base={act:p.act,title:p.title||"",min:p.min,int:p.int,note:p.note||"",kcal:""}}
   else if(key.startsWith("i:")){idx=+key.slice(2);base={...done[idx]};planId=base.planId||null;if(base.kcal==null)base.kcal=""}
   else base={act:"lop",min:30,int:1,note:"",kcal:""};
-  TCTX={kind:"sess",ds,idx,planId};
+  TCTX={kind:"sess",ds,idx,planId,act:base.act,title:base.title||"",ex:exClone(base.ex)};
+  if(!TCTX.ex.length&&planId&&idx===null){const prev=lastSessWithEx({planId},ds);if(prev){TCTX.ex=exClone(prev.x.ex);TCTX.prefill=prev.ds}}
   $("#sheet").innerHTML=`<span class="grab"></span><div><span class="mtype">Logg økt · ${fmtDay(addDays(S.start,logDay))}</span><h2 id="sheetTitle">Hva trente du?</h2></div>
    <div class="field-s"><label class="t" for="ts-act">Aktivitet</label>${actSelect("ts-act",base.act)}</div><div class="field-s" id="ts-title-row" ${base.act==="annet"?"":"hidden"}><label class="t" for="ts-title">Navn på økten</label><input type="text" class="txt" id="ts-title" maxlength="40" placeholder="F.eks. Klatring, dans, roing" value="${esc(base.title||"")}"></div>
    <div class="field-s"><label class="t" for="ts-min">Varighet, minutter</label><input type="number" class="txt" id="ts-min" min="1" max="600" step="5" inputmode="numeric" value="${base.min}"></div>
    <div class="field-s"><span class="t">Intensitet</span>${intChips("ts-int",base.int??1)}</div>
    <div class="field-s"><label class="t" for="ts-kcal">Kalorier fra klokke eller app (valgfritt)</label><input type="number" class="txt" id="ts-kcal" min="0" inputmode="numeric" placeholder="La stå tom for anslag" value="${base.kcal}"><span class="hint">Klokker viser ofte totalt forbruk. Trekk gjerne fra hvileforbruket hvis den skiller på det.</span></div>
+   <div class="field-s"><div class="exhead"><span class="t">Øvelser</span><span class="hint">Valgfritt</span></div><div id="ex-box"></div>${exNamesList()}</div>
    <div class="field-s"><label class="t" for="ts-note">Notat</label><input type="text" class="txt" id="ts-note" maxlength="80" value="${esc(base.note||"")}"></div>
    <p class="note estout" id="ts-est"></p>
    <div class="actions"><button class="btn" id="closeSheet">Avbryt</button><button class="btn primary" id="ts-save">Lagre økten</button></div>`;
-  $("#scrim").hidden=false;updTEst("ts");
+  $("#scrim").hidden=false;updTEst("ts");renderEx();
 }
 function saveSession(){
   const x=readT("ts");const k=$("#ts-kcal").value;
   const e={...x,kcal:k===""?null:Math.round(+k),t:Date.now()};if(TCTX.planId)e.planId=TCTX.planId;
+  const ex=exClean(TCTX.ex);if(ex.length)e.ex=ex;
   const dl=dayLog(TCTX.ds,true);dl.train=dl.train||[];
   if(TCTX.idx!==null)dl.train[TCTX.idx]=e;else dl.train.push(e);
   closeSheet();saveLog(TCTX.ds);renderAll();toast("Økten er logget");
@@ -1622,7 +1657,8 @@ function v4Change(t){
   else if(id==="me-ex"){S.exFactor=+t.value}
   else if(id.startsWith("sp-")){S.split[id.slice(3)]=Math.min(100,Math.max(0,Math.round(+t.value||0)))}
   else if(nm==="tp-dow"||nm==="tp-int"||id.startsWith("tp-")){if(id==="tp-act")$("#tp-title-row").hidden=t.value!=="annet";updTEst("tp");return true}
-  else if(nm==="ts-int"||id.startsWith("ts-")){if(id==="ts-act")$("#ts-title-row").hidden=t.value!=="annet";updTEst("ts");return true}
+  else if(nm==="ts-int"||id.startsWith("ts-")){if(id==="ts-act"){$("#ts-title-row").hidden=t.value!=="annet";TCTX.act=t.value;renderEx()}if(id==="ts-title")TCTX.title=t.value.trim();updTEst("ts");return true}
+  else if(exInput(t))return true;
   else if(id.startsWith("sn-"))return true;
   else return false;
   syncKcal();save();renderAll();return true;
@@ -1632,6 +1668,7 @@ function v4Input(t){
   if(id==="me-ex"){$("#o-ex").textContent=t.value+" %";return true}
   if(id.startsWith("tp-")){updTEst("tp");return true}
   if(id.startsWith("ts-")){updTEst("ts");return true}
+  if(exInput(t))return true;
   if(id.startsWith("me-")||id.startsWith("sp-")||id.startsWith("sn-"))return true;
   return false;
 }
@@ -1642,6 +1679,7 @@ function v4Click(t){
   if(t.id==="tp-save"){saveProgram();return true}
   if(d.topen!==undefined){openSession(d.topen);return true}
   if(t.id==="ts-save"){saveSession();return true}
+  if(exClick(t))return true;
   if(d.tdone!==undefined){quickTrain(d.tdone);return true}
   if(d.tskip!==undefined){const p=S.program.find(q=>q.id===d.tskip);if(!p)return true;const ds=iso(addDays(S.start,logDay));const dl=dayLog(ds,true);dl.train=dl.train||[];
     dl.train.push({planId:p.id,act:p.act,title:p.title||"",min:0,int:p.int,skipped:true,kcal:null,t:Date.now()});saveLog(ds);renderAll();
@@ -2002,7 +2040,9 @@ function placeOwn(idx,dishId){
   save();renderAll();toast("Lagt inn i menyen");
 }
 function removeOwn(idx){
-  const s=P.slots[idx];if(!s)return;delete S.ownPlaced[slotKey(s)];s.own=false;s.id=null;s.id=bestFor(idx);
+  const s=P.slots[idx];if(!s)return;delete S.ownPlaced[slotKey(s)];s.own=false;s.id=null;
+  if(S.autoPlan===false){s.manual=true;save();renderAll();toast("Egen rett fjernet fra menyen");return}
+  s.id=bestFor(idx);
   save();renderAll();toast("Egen rett fjernet. Menyen har valgt en ny rett.");
 }
 function openOwnEdit(dishId,idx){
@@ -2415,6 +2455,98 @@ async function checkUpdate(){
     else out.textContent="Du har nyeste versjon som er publisert. Har du nettopp kjørt git push, kan GitHub bruke noen minutter før den er ute.";
   }catch(e){out.textContent="Fikk ikke sjekket. Er telefonen på nett?";out.classList.add("err")}
   finally{btn.disabled=false;fillAppVer()}
+}
+
+/* ---------- Øvelser i treningsøkter: sett, repetisjoner og vekt ---------- */
+const EX_COMMON=["Knebøy","Benkpress","Markløft","Skulderpress","Roing med stang","Nedtrekk","Pull-ups","Dips","Utfall","Hip thrust","Beinpress","Biceps curl","Triceps pushdown","Sidehev","Rumensk markløft","Leg curl","Leg extension","Push-ups","Planke"];
+const exClone = ex => Array.isArray(ex)?ex.map(e=>({n:e.n||"",note:e.note||"",sets:(e.sets||[]).map(x=>({r:x.r??"",kg:x.kg??""}))})):[];
+function exClean(ex){
+  return(ex||[]).map(e=>({n:String(e.n||"").trim().slice(0,50),note:String(e.note||"").trim().slice(0,60),
+    sets:(e.sets||[]).filter(x=>+x.r>0||+x.kg>0).map(x=>({r:+x.r>0?Math.round(+x.r):0,kg:x.kg===""||x.kg==null?null:Math.round(+x.kg*100)/100}))}))
+    .filter(e=>e.n&&e.sets.length).map(e=>{if(!e.note)delete e.note;return e});
+}
+/* Alle loggede økter med øvelser, nyeste først */
+function allSessWithEx(){
+  const out=[];
+  Object.values(LOG).forEach(m=>Object.entries(m||{}).forEach(([ds,dl])=>((dl&&dl.train)||[]).forEach((x,i)=>{if(x&&!x.skipped&&Array.isArray(x.ex)&&x.ex.length)out.push({ds,x,i})})));
+  return out.sort((a,b)=>a.ds<b.ds?1:a.ds>b.ds?-1:(b.x.t||0)-(a.x.t||0));
+}
+function lastSessWithEx(match,beforeDs){
+  return allSessWithEx().find(o=>{if(beforeDs&&o.ds>beforeDs)return false;if(TCTX.ds===o.ds&&TCTX.idx===o.i)return false;
+    if(match.planId)return o.x.planId===match.planId;
+    return o.x.act===match.act&&(match.act!=="annet"||(o.x.title||"")===(match.title||""))});
+}
+/* Siste gang en øvelse ble gjort, før denne økten */
+function exPrev(name){
+  const n=String(name||"").trim().toLowerCase();if(!n)return null;
+  for(const o of allSessWithEx()){if(o.ds>TCTX.ds||(o.ds===TCTX.ds&&o.i===TCTX.idx))continue;
+    const e=o.x.ex.find(y=>String(y.n).trim().toLowerCase()===n);if(e)return{ds:o.ds,e}}
+  return null;
+}
+const kgTxt = kg => kg==null||kg===""?"kroppsvekt":`${(+kg).toLocaleString("nb-NO",{maximumFractionDigits:2})} kg`;
+function setsTxt(sets){
+  const ss=(sets||[]).filter(x=>+x.r>0||+x.kg>0);if(!ss.length)return"";
+  const same=ss.every(x=>+x.r===+ss[0].r&&String(x.kg??"")===String(ss[0].kg??""));
+  if(same)return`${ss.length} × ${+ss[0].r||"?"} · ${kgTxt(ss[0].kg)}`;
+  const kgs=new Set(ss.map(x=>String(x.kg??"")));
+  if(kgs.size===1)return`${ss.map(x=>+x.r||"?").join(", ")} reps · ${kgTxt(ss[0].kg)}`;
+  return ss.map(x=>`${+x.r||"?"}×${x.kg==null||x.kg===""?"kv":(+x.kg).toLocaleString("nb-NO")}`).join(", ")+" kg";
+}
+const exVolume = ex => (ex||[]).reduce((a,e)=>a+(e.sets||[]).reduce((b,x)=>b+(+x.r||0)*(+x.kg||0),0),0);
+const e1rm = (kg,r) => +kg>0&&+r>0?(+r===1?+kg:+kg*(1+ +r/30)):0;
+function exSummaryHtml(ex){
+  if(!Array.isArray(ex)||!ex.length)return"";const vol=exVolume(ex);
+  return`<div class="exsum">${ex.map(e=>`<span><b>${esc(e.n)}</b><span class="num">${setsTxt(e.sets)}</span></span>`).join("")}${vol?`<span><small class="hint">Totalt løftet</small><span class="num">${nf(vol)} kg</span></span>`:""}</div>`;
+}
+function exNamesList(){
+  const seen=new Map();allSessWithEx().forEach(o=>o.x.ex.forEach(e=>{const k=String(e.n).trim().toLowerCase();if(k&&!seen.has(k))seen.set(k,String(e.n).trim())}));
+  EX_COMMON.forEach(n=>{if(!seen.has(n.toLowerCase()))seen.set(n.toLowerCase(),n)});
+  return`<datalist id="ex-names">${[...seen.values()].map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist>`;
+}
+function exPrevTxt(name){const p=exPrev(name);return p?`Forrige gang ${fmtShort(new Date(p.ds+"T12:00:00"))}: ${setsTxt(p.e.sets)}`:""}
+function renderEx(){
+  const box=$("#ex-box");if(!box)return;const ex=TCTX.ex||[];
+  const prevSess=!ex.length?lastSessWithEx(TCTX.planId?{planId:TCTX.planId}:{act:TCTX.act,title:TCTX.title},TCTX.ds):null;
+  box.innerHTML=`${TCTX.prefill&&ex.length?`<p class="note" style="margin:0">Øvelsene er hentet fra forrige gang (${fmtShort(new Date(TCTX.prefill+"T12:00:00"))}). Endre det som var annerledes i dag.</p>`:""}
+   <div class="exlist">${ex.map((e,i)=>`<div class="excard">
+     <div class="exname"><input type="text" class="txt" list="ex-names" data-exn="${i}" maxlength="50" placeholder="Øvelse, f.eks. knebøy" value="${esc(e.n)}" aria-label="Øvelse ${i+1}"><button type="button" class="xbtn" data-exdel="${i}" aria-label="Fjern øvelsen">×</button></div>
+     <span class="exprev" id="exprev-${i}">${esc(exPrevTxt(e.n))}</span>
+     <div class="sets">${e.sets.map((x,j)=>`<div class="setrow"><span class="sn">Sett ${j+1}</span><input type="number" class="txt" inputmode="numeric" min="0" data-exr="${i}:${j}" value="${x.r}" placeholder="reps" aria-label="Repetisjoner sett ${j+1}"><span>×</span><input type="number" class="txt" inputmode="decimal" min="0" step="0.5" data-exkg="${i}:${j}" value="${x.kg}" placeholder="kg" aria-label="Vekt i kg sett ${j+1}"><span>kg</span><button type="button" class="xbtn" data-exsdel="${i}:${j}" aria-label="Fjern sett ${j+1}">×</button></div>`).join("")}</div>
+     <div class="actions"><button type="button" class="btn sm" data-exsadd="${i}">${ICON.plus}Sett</button><input type="text" class="txt" data-exnote="${i}" maxlength="60" placeholder="Notat, f.eks. tempo eller sekunder" value="${esc(e.note||"")}" style="flex:1;min-width:140px"></div>
+   </div>`).join("")}</div>
+   <div class="actions"><button type="button" class="btn sm" id="ex-add">${ICON.plus}Legg til øvelse</button>${prevSess?`<button type="button" class="btn sm" id="ex-copy">${ICON.copy}Hent øvelser fra ${fmtShort(new Date(prevSess.ds+"T12:00:00"))}</button>`:""}</div>
+   ${ex.length?"":`<span class="hint">Skriv inn øvelser med sett, repetisjoner og vekt. La vekten stå tom for kroppsvektøvelser.</span>`}`;
+}
+function exInput(t){
+  const d=t.dataset;if(!TCTX||!TCTX.ex)return false;
+  if(d.exn!==undefined){const e=TCTX.ex[+d.exn];if(e){e.n=t.value;const p=$("#exprev-"+d.exn);if(p)p.textContent=exPrevTxt(t.value)}return true}
+  if(d.exnote!==undefined){const e=TCTX.ex[+d.exnote];if(e)e.note=t.value;return true}
+  if(d.exr!==undefined||d.exkg!==undefined){const[i,j]=(d.exr??d.exkg).split(":").map(Number);const x=TCTX.ex[i]&&TCTX.ex[i].sets[j];if(x){if(d.exr!==undefined)x.r=t.value;else x.kg=t.value}return true}
+  return false;
+}
+function exClick(t){
+  const d=t.dataset;
+  if(t.id==="ex-add"){
+    // Ny øvelse: start med ett sett
+    TCTX.ex.push({n:"",note:"",sets:[{r:"",kg:""}]});TCTX.prefill=null;renderEx();
+    const ins=document.querySelectorAll("[data-exn]");if(ins.length)ins[ins.length-1].focus();return true}
+  if(t.id==="ex-copy"){const p=lastSessWithEx(TCTX.planId?{planId:TCTX.planId}:{act:TCTX.act,title:TCTX.title},TCTX.ds);if(p){TCTX.ex=exClone(p.x.ex);TCTX.prefill=p.ds;renderEx()}return true}
+  if(d.exdel!==undefined){TCTX.ex.splice(+d.exdel,1);renderEx();return true}
+  if(d.exsadd!==undefined){const e=TCTX.ex[+d.exsadd];if(e){const last=e.sets[e.sets.length-1]||{r:"",kg:""};e.sets.push({r:last.r,kg:last.kg});renderEx()}return true}
+  if(d.exsdel!==undefined){const[i,j]=d.exsdel.split(":").map(Number);const e=TCTX.ex[i];if(e){e.sets.splice(j,1);if(!e.sets.length)e.sets.push({r:"",kg:""});renderEx()}return true}
+  return false;
+}
+/* Oversikt over øvelser: siste gang og beste sett */
+function exHistoryHtml(){
+  const map=new Map();
+  allSessWithEx().slice().reverse().forEach(o=>o.x.ex.forEach(e=>{const k=String(e.n).trim().toLowerCase();if(!k)return;
+    let m=map.get(k);if(!m){m={n:String(e.n).trim(),count:0,best:null};map.set(k,m)}
+    m.count++;m.last={ds:o.ds,sets:e.sets};
+    (e.sets||[]).forEach(x=>{const v=e1rm(x.kg,x.r);if(v&&(!m.best||v>m.best.v))m.best={v,kg:+x.kg,r:+x.r,ds:o.ds}})}));
+  if(!map.size)return"";
+  const L=[...map.values()].sort((a,b)=>a.last.ds<b.last.ds?1:a.last.ds>b.last.ds?-1:a.n.localeCompare(b.n,"nb")).slice(0,15);
+  return`<h2 class="section-h">Øvelser</h2><div class="card" style="padding-block:6px"><div class="exhist">${L.map(m=>`<div class="exrow"><span><b>${esc(m.n)}</b><br><small>Sist ${fmtShort(new Date(m.last.ds+"T12:00:00"))}: ${setsTxt(m.last.sets)}</small></span><span class="num" style="text-align:right">${m.best?`${(m.best.kg).toLocaleString("nb-NO")} kg × ${m.best.r}<br><small>≈ ${nf(m.best.v)} kg 1RM</small>`:`<small>${m.count} ${m.count===1?"gang":"ganger"}</small>`}</span></div>`).join("")}</div>
+  <p class="note" style="margin:6px 2px">Beste sett er regnet om til anslått maks for én repetisjon (1RM, Epleys formel), så du kan sammenlikne tunge og lette sett.</p></div>`;
 }
 
 /* ---------- Boot ---------- */

@@ -6,6 +6,7 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 
 - **Oppsett:** periode, personer, budsjett, måltider, maks tid, ernæringsprofil, kosthold
 - **Meny:** én rett per måltid og dag, bytt enkeltretter eller lag ny variant
+- **Automatisk planlegging kan slås av:** da er menyen tom til du velger retter selv («Foreslå rett», egen rett eller «Ikke planlegg»); logg, kaloribehov og trening virker som før
 - **Handleliste:** samlet per butikkavdeling, med avkrysning og estimert sum
 - **Pakninger og rester:** handlelisten regner hele pakninger, og menyen velges slik at åpnede pakninger blir brukt opp før de blir dårlige
 - **Måltider som ikke skal planlegges:** ta ut enkeltmåltider eller gjentakende måltider (f.eks. middag på restaurant, frokost på konferanse) med årsak og notat
@@ -14,6 +15,7 @@ Prototype av en mobilapp som lager meny og handleliste for en valgt periode, ut 
 - **Om deg:** alder, kjønn, høyde, vekt, hverdagsaktivitet og mål gir daglig kaloribehov (Mifflin-St Jeor × aktivitetsnivå ± mål)
 - **Fordeling og kosekvote:** andel av dagens kalorier til frokost, lunsj, middag og faste mellommåltider; resten er kosekvote som overføres dag for dag og nullstilles mandag
 - **Trening:** ukentlig treningsprogram og logg av økter med anslått forbrenning (MET-verdier), som øker dagens mål og kosekvote
+- **Øvelser i økter:** før opp øvelser med sett, repetisjoner og vekt (tom vekt = kroppsvekt) og et notat; planlagte økter fylles ut fra forrige gang, og «Øvelser» viser siste gang og beste sett (anslått 1RM)
 
 - **Kropp og prognose:** målinger av vekt, mage-, nakke- og hofteomkrets med fettprosent (US Navy) og sammenlikning over tid; vektprognose fra kaloribalanse med fordeling på fett og muskler ut fra protein og styrketrening
 
